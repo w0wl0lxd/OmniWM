@@ -11,7 +11,7 @@ sidebar:
 
 ```json
 {
-  "version": 23,
+  "version": 24,
   "id": "<uuid>",
   "kind": "<ping|version|command|capture|query|rule|workspace|window|window-mark|window-gather|shell|subscribe>",
   "authorizationToken": "<token>",
@@ -203,13 +203,13 @@ Both fields are required. `from` is `workspace`, `monitor`, or `all`; `omniwmctl
 
 ```json
 {
-  "version": 23,
+  "version": 24,
   "id": "<request-id>",
   "ok": true,
   "kind": "<ping|version|command|capture|query|rule|workspace|window|window-mark|window-gather|shell|subscribe>",
   "status": "<success|executed|ignored|error|subscribed>",
   "result": {
-    "kind": "<pong|version|capture|workspace-bar|active-workspace|focused-monitor|apps|metrics|focused-window|windows|workspaces|displays|rules|rule-actions|queries|commands|subscriptions|capabilities|subscribed|window-marks|window-gather|shell-widgets>",
+    "kind": "<pong|version|capture|workspace-bar|active-workspace|focused-monitor|apps|metrics|focused-window|windows|unmanaged-windows|workspaces|displays|rules|rule-actions|queries|commands|subscriptions|capabilities|subscribed|window-marks|window-gather|shell-widgets>",
     "payload": { ... }
   }
 }
@@ -232,7 +232,7 @@ Authorization, protocol, validation, and routing failures keep the originating r
 
 ```json
 {
-  "version": 23,
+  "version": 24,
   "id": "<request-id>",
   "ok": false,
   "kind": "query",
@@ -249,7 +249,7 @@ Events are sent on subscription connections after the initial response.
 
 ```json
 {
-  "version": 23,
+  "version": 24,
   "id": "<event-id>",
   "kind": "event",
   "channel": "focus",

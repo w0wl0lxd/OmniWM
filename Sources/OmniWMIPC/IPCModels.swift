@@ -4,7 +4,7 @@
 import Foundation
 
 public enum OmniWMIPCProtocol {
-    public static let version = 23
+    public static let version = 24
 }
 
 public struct IPCNoPayload: Codable, Equatable, Sendable {

@@ -98,6 +98,7 @@ The three workspace flags answer different questions. `is-focused` marks the wor
 | `metrics` | — | — | Always-on runtime metrics: AX frame-write attempts and whole-attempt wall time (the setter plus its ordering/verification reads; enhanced-UI batch work and the retry element refresh are not counted) as since-launch totals plus live rows per app AX context, display tick timing, layout build counts, and process energy/CPU. Populated without an active `capture` session |
 | `focused-window` | — | — | Focused managed window snapshot |
 | `windows` | `--window`, `--workspace`, `--display`, `--focused`, `--visible`, `--floating`, `--scratchpad`, `--app`, `--bundle-id` | window fields | Managed windows |
+| `unmanaged-windows` | — | — | On-screen windows OmniWM does not manage, with `pid`, `windowId`, `app`, `frame`, `disposition` and `reason`; no titles |
 | `workspaces` | `--workspace`, `--display`, `--current`, `--visible`, `--focused` | workspace fields | Configured workspaces with occupancy |
 | `displays` | `--display`, `--main`, `--current` | display fields | Connected displays with geometry |
 | `rules` | — | — | Persisted user window rules |
@@ -107,6 +108,8 @@ The three workspace flags answer different questions. `is-focused` marks the wor
 | `subscriptions` | — | — | Subscription registry |
 | `capabilities` | — | — | Full protocol capabilities, including `windowMarkActions`, `windowGatherActions`, and `shellActions` |
 | `shell-widgets` | — | — | Luau shell widgets with their `state` (`loading`, `loaded`, `failed` or `fallback`), `placements`, `source` file and any `error`, plus `problems` found in `shell.toml` and theme files |
+
+`unmanaged-windows` lists windows from the window server that OmniWM does not track: on-screen windows of other applications, excluding OmniWM's own. It never includes titles. `disposition` is `unmanaged`, `undecided`, `floating` or `managed`, and `reason` names what produced it: a built-in rule such as `externalSurface` or `unprovenIndependentRoot`, `userRule`, `manualOverride`, the missing evidence behind `undecided` (`attributeFetchFailed`, `independentRootEvidenceMissing`, `requiredTitleMissing`, `windowServerEvidenceMissing`), an accessibility heuristic such as `nonStandardSubrole`, or `noAccessibilityWindow` when the window has no accessibility element. A `floating` or `managed` entry is a window that passes the rules but is not yet tracked.
 
 `commands` and `capabilities` include the `window mark` descriptors. List live marks with [`omniwmctl window mark list`](/reference/cli/actions/#window-marks).
 

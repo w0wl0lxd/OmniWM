@@ -4,6 +4,37 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func value(_ value: borrowing [IPCShellActionDescriptor]) throws {
+        begin(91)
+        var first = true
+        let span = value.span
+        var index = 0
+        while index < span.count {
+            item(&first)
+            try self.value(span[index])
+            index += 1
+        }
+        end(93)
+    }
+
+    mutating func value(_ value: borrowing IPCWindowActionName) throws {
+        try self.value(value.rawValue)
+    }
+
+    mutating func value(_ value: borrowing IPCWindowActionDescriptor) throws {
+        begin(123)
+        var first = true
+        self.key("arguments", &first)
+        try self.value(value.arguments)
+        self.key("name", &first)
+        try self.value(value.name)
+        self.key("path", &first)
+        try self.value(value.path)
+        self.key("summary", &first)
+        try self.value(value.summary)
+        end(125)
+    }
+
     mutating func value(_ value: borrowing [IPCWindowActionDescriptor]) throws {
         begin(91)
         var first = true
@@ -227,27 +258,6 @@ extension IPCJSONWriter {
         try self.value(value.windowMarkActions)
         self.key("workspaceActions", &first)
         try self.value(value.workspaceActions)
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing [IPCSubscriptionChannel]) throws {
-        begin(91)
-        var first = true
-        let span = value.span
-        var index = 0
-        while index < span.count {
-            item(&first)
-            try self.value(span[index])
-            index += 1
-        }
-        end(93)
-    }
-
-    mutating func value(_ value: borrowing IPCSubscribeResult) throws {
-        begin(123)
-        var first = true
-        self.key("channels", &first)
-        try self.value(value.channels)
         end(125)
     }
 }

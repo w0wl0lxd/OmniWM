@@ -4,6 +4,47 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func value(_ value: borrowing [IPCRect]) throws {
+        begin(91)
+        var first = true
+        let span = value.span
+        var index = 0
+        while index < span.count {
+            item(&first)
+            try self.value(span[index])
+            index += 1
+        }
+        end(93)
+    }
+
+    mutating func value(_ value: borrowing IPCSpan) throws {
+        begin(123)
+        var first = true
+        self.key("end", &first)
+        try self.value(value.end)
+        self.key("start", &first)
+        try self.value(value.start)
+        end(125)
+    }
+
+    mutating func value(_ value: borrowing IPCDisplayOrientation) throws {
+        try self.value(value.rawValue)
+    }
+
+    mutating func value(_ value: borrowing IPCInsets) throws {
+        begin(123)
+        var first = true
+        self.key("bottom", &first)
+        try self.value(value.bottom)
+        self.key("left", &first)
+        try self.value(value.left)
+        self.key("right", &first)
+        try self.value(value.right)
+        self.key("top", &first)
+        try self.value(value.top)
+        end(125)
+    }
+
     mutating func fields0(_ value: borrowing IPCDisplayQuerySnapshot, _ first: inout Bool) throws {
         if let fieldValue = value.activeWorkspace {
             self.key("activeWorkspace", &first)
@@ -216,40 +257,5 @@ extension IPCJSONWriter {
     mutating func fields3(_ value: borrowing IPCRuleSnapshot, _ first: inout Bool) throws {
         self.key("validationMessages", &first)
         try self.value(value.validationMessages)
-    }
-
-    mutating func value(_ value: borrowing IPCRuleSnapshot) throws {
-        begin(123)
-        var first = true
-        try fields0(value, &first)
-        try fields1(value, &first)
-        try fields2(value, &first)
-        try fields3(value, &first)
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing [IPCRuleSnapshot]) throws {
-        begin(91)
-        var first = true
-        let span = value.span
-        var index = 0
-        while index < span.count {
-            item(&first)
-            try self.value(span[index])
-            index += 1
-        }
-        end(93)
-    }
-
-    mutating func value(_ value: borrowing IPCRulesQueryResult) throws {
-        begin(123)
-        var first = true
-        self.key("rules", &first)
-        try self.value(value.rules)
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing IPCRuleActionName) throws {
-        try self.value(value.rawValue)
     }
 }

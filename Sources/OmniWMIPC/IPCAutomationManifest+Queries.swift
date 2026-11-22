@@ -110,6 +110,10 @@ extension IPCAutomationManifest {
             fields: windowFieldCatalog
         ),
         IPCQueryDescriptor(
+            name: .unmanagedWindows,
+            summary: "Return on-screen windows that OmniWM does not manage, each with its decision and reason, without titles."
+        ),
+        IPCQueryDescriptor(
             name: .workspaces,
             summary: "Return configured workspaces with live occupancy and monitor assignment.",
             selectors: [

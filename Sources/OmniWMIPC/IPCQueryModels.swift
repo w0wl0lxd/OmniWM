@@ -10,6 +10,7 @@ public enum IPCQueryName: String, Codable, CaseIterable, Equatable, Sendable {
     case apps
     case focusedWindow = "focused-window"
     case windows
+    case unmanagedWindows = "unmanaged-windows"
     case workspaces
     case displays
     case rules
@@ -282,6 +283,46 @@ public struct IPCWindowsQueryResult: Codable, Equatable, Sendable {
     public let windows: [IPCWindowQuerySnapshot]
 
     public init(windows: [IPCWindowQuerySnapshot]) {
+        self.windows = windows
+    }
+}
+
+public enum IPCUnmanagedWindowDisposition: String, Codable, CaseIterable, Equatable, Sendable {
+    case unmanaged
+    case undecided
+    case floating
+    case managed
+}
+
+public struct IPCUnmanagedWindowSnapshot: Codable, Equatable, Sendable {
+    public let pid: Int32
+    public let windowId: Int
+    public let app: IPCAppRef?
+    public let frame: IPCRect
+    public let disposition: IPCUnmanagedWindowDisposition
+    public let reason: String
+
+    public init(
+        pid: Int32,
+        windowId: Int,
+        app: IPCAppRef?,
+        frame: IPCRect,
+        disposition: IPCUnmanagedWindowDisposition,
+        reason: String
+    ) {
+        self.pid = pid
+        self.windowId = windowId
+        self.app = app
+        self.frame = frame
+        self.disposition = disposition
+        self.reason = reason
+    }
+}
+
+public struct IPCUnmanagedWindowsQueryResult: Codable, Equatable, Sendable {
+    public let windows: [IPCUnmanagedWindowSnapshot]
+
+    public init(windows: [IPCUnmanagedWindowSnapshot]) {
         self.windows = windows
     }
 }
