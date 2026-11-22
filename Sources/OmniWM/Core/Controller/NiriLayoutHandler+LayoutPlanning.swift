@@ -149,7 +149,8 @@ extension NiriLayoutHandler {
         if shouldPreparePictures(snapshot: snapshot, animationTime: sampledAnimationTime) {
             diff.picturePreparation = picturePreparation(
                 engine: engine, snapshot: snapshot, state: snapshot.viewportState,
-                isSettled: isSettled, time: sampledAnimationTime ?? CACurrentMediaTime()
+                isSettled: isSettled,
+                time: sampledAnimationTime ?? animationSampleTime(in: snapshot.workspaceId)
             )
         }
         let isInteractiveResize = animationTime == nil && engine.interactiveResize?.workspaceId == snapshot.workspaceId
@@ -408,10 +409,11 @@ extension NiriLayoutHandler {
             scale: snapshot.monitor.scale
         )
 
+        let sampleTime = sampledAnimationTime ?? animationSampleTime(in: snapshot.workspaceId)
         let offsets = controller?.workspaceManager.animationDriver.renderOffsets(
             in: snapshot.workspaceId,
             semanticOffset: snapshot.viewportState.viewOffset,
-            at: sampledAnimationTime ?? CACurrentMediaTime()
+            at: sampleTime
         )
 
         return engine.calculateCombinedLayoutUsingPools(
@@ -421,6 +423,7 @@ extension NiriLayoutHandler {
             state: snapshot.viewportState,
             workingArea: area,
             animationTime: sampledAnimationTime,
+            sampleTime: sampleTime,
             viewOffsetOverride: offsets?.liveOffset,
             settledVisibilityOffset: offsets?.settledVisibilityOffset,
             isSettled: isSettled,
