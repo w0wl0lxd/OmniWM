@@ -77,6 +77,44 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         }
     }
 
+    func testWorkspaceSwipeSensitivityScalesTheFingerTravelOfAnAnimatedSwipe() throws {
+        func release(sensitivity: Double) throws -> (progress: Double, target: Double?) {
+            let (controller, swipe, _, _) = try fixture()
+            controller.settings.gestures.scrollEnabled = false
+            controller.settings.gestures.workspaceSwipeEnabled = true
+            controller.settings.gestures.workspaceSwipeSensitivity = sensitivity
+            let heights = [0.2] + (1 ... 10).map { 0.2 + 0.02 * Double($0) } + Array(repeating: 0.4, count: 10)
+            for (index, height) in heights.enumerated() {
+                let touch = MouseEventHandler.GestureTouchSample(
+                    phase: .moved, normalizedPosition: CGPoint(x: 0.5, y: height)
+                )
+                controller.mouseEventHandler.receiveTapGestureEvent(.init(
+                    location: CGPoint(x: 800, y: 450),
+                    phaseRawValue: (index == 0 ? NSEvent.Phase.began : .changed).rawValue,
+                    timestamp: 1 + 0.05 * Double(index),
+                    touches: [touch, touch, touch]
+                ))
+            }
+            let flight = try XCTUnwrap(swipe.flight)
+            let progress = flight.progress
+            controller.mouseEventHandler.receiveTapGestureEvent(.init(
+                location: CGPoint(x: 800, y: 450),
+                phaseRawValue: NSEvent.Phase.ended.rawValue,
+                timestamp: 1 + 0.05 * Double(heights.count),
+                touches: []
+            ))
+            let target = flight.motion.target
+            swipe.cancel(reason: "test-complete")
+            return (progress, target)
+        }
+
+        let standard = try release(sensitivity: 1)
+        let raised = try release(sensitivity: 2.5)
+        XCTAssertEqual(raised.progress, standard.progress * 2.5, accuracy: 0.001)
+        XCTAssertEqual(standard.target, 0)
+        XCTAssertEqual(raised.target, 1)
+    }
+
     func testAnimationFollowsInputAxisWithConfiguredDestinationDirection() throws {
         for axis in WorkspaceSwipeAxis.allCases {
             for inverted in [false, true] {

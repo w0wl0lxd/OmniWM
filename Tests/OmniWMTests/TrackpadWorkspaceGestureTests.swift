@@ -1285,6 +1285,23 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
         XCTAssertEqual(activeWorkspace(fixture), fixture.ws1)
     }
 
+    func testWorkspaceSwipeSensitivityScalesDiscreteSwipeTravel() throws {
+        for (sensitivity, switches) in [(1.0, false), (3.0, true)] {
+            let fixture = try makeFixture()
+            fixture.controller.motionPolicy.animationsEnabled = false
+            fixture.controller.settings.gestures.workspaceSwipeSensitivity = sensitivity
+            var time: TimeInterval = 100
+            sendFrame(fixture, phase: .began, fingers: 3, x: 0.5, y: 0.2, at: time)
+            for step in 1 ... 12 {
+                time += 0.05
+                sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.2 + 0.01 * CGFloat(step), at: time)
+            }
+            XCTAssertEqual(activeWorkspace(fixture), switches ? fixture.ws2 : fixture.ws1, "\(sensitivity)")
+            sendFrame(fixture, phase: .ended, fingers: 0, x: 0, y: 0, at: time + 0.5)
+            XCTAssertEqual(activeWorkspace(fixture), switches ? fixture.ws2 : fixture.ws1, "\(sensitivity)")
+        }
+    }
+
     func testFastFlickBelowDistanceThresholdSwitchesOnReleaseButNeverOnCancel() throws {
         let cases: [(label: String, phase: NSEvent.Phase, switches: Bool)] = [
             ("ended", .ended, true),

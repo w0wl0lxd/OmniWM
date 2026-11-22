@@ -16,6 +16,7 @@ final class GestureSettings {
 
     nonisolated static let windowGestureSensitivityRange = 0.1 ... 5.0
     nonisolated static let mouseWheelSensitivityRange = 0.1 ... 10.0
+    nonisolated static let workspaceSwipeSensitivityRange = 0.5 ... 5.0
 
     private nonisolated static let scrollSensitivityRange = 0.1 ... 100.0
 
@@ -98,6 +99,8 @@ final class GestureSettings {
     var workspaceSwipeEdgeBehavior = GestureSettings.defaults.workspaceSwipeEdgeBehavior ?? .cycle {
         didSet { notifyChange() }
     }
+
+    var workspaceSwipeSensitivity = SettingsExport.Gestures.defaultWorkspaceSwipeSensitivity
 
     var overviewGestureEnabled = GestureSettings.defaults.overviewGestureEnabled ?? false {
         didSet {
