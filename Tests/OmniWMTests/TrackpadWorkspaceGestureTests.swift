@@ -1548,6 +1548,36 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
         XCTAssertEqual(handler.columnSummary(for: fixture.ws1)?.viewport, [.before, .intersecting, .intersecting])
     }
 
+    func testColumnFlickTravelDoesNotDependOnTheLiftFrame() throws {
+        for frames in 1 ... 4 {
+            let immediate = try columnFlickTravel(frames: frames, liftDelay: 0)
+            let delayed = try columnFlickTravel(frames: frames, liftDelay: 0.024)
+            let held = try columnFlickTravel(frames: frames, liftDelay: 0.2)
+
+            XCTAssertEqual(delayed, immediate, "\(frames) frames")
+            XCTAssertGreaterThan(delayed, 10 * held, "\(frames) frames")
+            XCTAssertGreaterThan(held, 0, "\(frames) frames")
+        }
+    }
+
+    private func columnFlickTravel(frames: Int, liftDelay: TimeInterval) throws -> CGFloat {
+        let fixture = try makeFixture(workspaceSwipeEnabled: false, scrollGestureEnabled: true)
+        fixture.controller.settings.gestures.trackpadScrollStyle = .momentum
+        fixture.controller.settings.gestures.scrollSensitivity = 0.2
+        try addColumnGestureWindows(to: fixture)
+        let manager = fixture.controller.workspaceManager
+        let start = manager.niriViewportState(for: fixture.ws1).viewOffset
+        var time: TimeInterval = 100
+        sendFrame(fixture, phase: .began, fingers: 3, x: 0.8, y: 0.5, at: time)
+        for step in 1 ... frames {
+            time += 0.008
+            sendFrame(fixture, phase: .changed, fingers: 3, x: 0.8 - 0.04 * CGFloat(step), y: 0.5, at: time)
+        }
+        XCTAssertTrue(fixture.controller.mouseEventHandler.isViewportGestureActive)
+        sendFrame(fixture, phase: .ended, fingers: 0, x: 0, y: 0, at: time + liftDelay)
+        return abs(manager.niriViewportState(for: fixture.ws1).viewOffset - start)
+    }
+
     func testCancelledColumnGestureDoesNotFocusLandingWindow() throws {
         var focusedWindowIds: [UInt32] = []
         let fixture = try makeFixture(
