@@ -5,6 +5,7 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 @testable import OmniWM
+import OmniWMIPC
 import XCTest
 
 @MainActor
@@ -57,6 +58,17 @@ final class WorkspaceSkipEmptyNavigationTests: XCTestCase {
         XCTAssertEqual(cycle(fixture, isNext: false, steps: 1), [0])
         XCTAssertEqual(cycle(fixture, isNext: true, steps: 5), [1, 2, 3, 4, 4])
         XCTAssertEqual(cycle(fixture, isNext: false, steps: 5), [3, 2, 1, 0, 0])
+    }
+
+    func testIPCSwitchToNextAtTheLastWorkspaceReportsNoChangeWhenWrapAroundIsOff() throws {
+        let fixture = try makeFixture(occupied: [0, 1, 2, 3, 4])
+        defer { fixture.controller.deadlineWheel.stop() }
+        fixture.controller.settings.workspaces.wrapAround = false
+        let router = IPCCommandRouter(controller: fixture.controller, sessionToken: "test")
+
+        XCTAssertEqual(cycle(fixture, isNext: true, steps: 4), [1, 2, 3, 4])
+        XCTAssertEqual(router.handle(.workspace(.next)), .noChange)
+        XCTAssertEqual(router.handle(.workspace(.previous)), .executed)
     }
 
     func testSkipEmptyReturnsNilWhenOnlyCurrentWorkspaceIsOccupied() throws {
