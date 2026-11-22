@@ -1,6 +1,12 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Wrap Around at the First and Last Workspace" : {
+
+    },
+    "Next and previous workspace shortcuts and omniwmctl commands continue from the last workspace to the first, and the reverse. Turn this off to stop at the ends." : {
+
+    },
     "Apply to Every New Matching Window" : {
 
     },

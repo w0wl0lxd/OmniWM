@@ -74,6 +74,25 @@ final class SettingsTOMLCodecTests: XCTestCase {
         XCTAssertNil(result.migration)
     }
 
+    func testWorkspaceWrapAroundDefaultsOnAndRoundTrips() throws {
+        var export = SettingsExport.defaults()
+        XCTAssertTrue(export.workspaceWrapAround)
+        for enabled in [false, true] {
+            export.workspaceWrapAround = enabled
+            let data = try SettingsTOMLCodec.encode(export)
+            XCTAssertEqual(try SettingsTOMLCodec.decode(data), export)
+            XCTAssertFalse(SettingsTOMLCodec.unknownKeyPaths(in: data).contains("general.workspaceWrapAround"))
+        }
+
+        let omitted = try canonicalDefaultLines { lines in
+            let index = try XCTUnwrap(lines.firstIndex { $0.hasPrefix("workspaceWrapAround = ") })
+            lines.remove(at: index)
+        }
+        let result = try SettingsTOMLCodec.decodeForLoad(omitted)
+        XCTAssertTrue(result.export.workspaceWrapAround)
+        XCTAssertNil(result.migration)
+    }
+
     func testPausePalettePasteDuringSecureInputDefaultsOnAndRoundTrips() throws {
         var export = SettingsExport.defaults()
         XCTAssertTrue(export.pausePalettePasteDuringSecureInput)
