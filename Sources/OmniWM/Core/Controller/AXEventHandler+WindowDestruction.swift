@@ -5,6 +5,8 @@ import AppKit
 import Foundation
 
 extension AXEventHandler {
+    private static let minimumTabSiblingDimension: CGFloat = 100
+
     func hasPendingWindowClose(_ token: WindowToken, workspaceId: WorkspaceDescriptor.ID) -> Bool {
         if hasPendingManagedReplacementDestroy(token, workspaceId: workspaceId, evidence: .windowClosed) {
             return true
@@ -240,6 +242,32 @@ extension AXEventHandler {
             workspaceId: candidate.workspaceId,
             reason: "destroy_processed"
         )
+    }
+
+    static func windowFrames(ofProcess pid: pid_t) -> [Int: CGRect]? {
+        guard let windows = CGWindowListCopyWindowInfo(
+            [.optionAll, .excludeDesktopElements], kCGNullWindowID
+        ) as? [[String: Any]] else { return nil }
+        var frames: [Int: CGRect] = [:]
+        for window in windows where window[kCGWindowOwnerPID as String] as? pid_t == pid {
+            guard let windowId = window[kCGWindowNumber as String] as? Int,
+                  let bounds = window[kCGWindowBounds as String] as? [String: Any],
+                  let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary)
+            else { return nil }
+            frames[windowId] = frame
+        }
+        return frames.isEmpty ? nil : frames
+    }
+
+    func closedWithoutTabSibling(_ burst: PendingManagedReplacementBurst, pid: pid_t) -> Bool {
+        guard let controller, burst.creates.isEmpty,
+              burst.destroys.allSatisfy({ $0.candidate.evidence == .windowClosed }),
+              let frames = processWindowFramesProvider(pid)
+        else { return false }
+        return !frames.contains { windowId, frame in
+            min(frame.width, frame.height) >= Self.minimumTabSiblingDimension
+                && controller.workspaceManager.entry(forWindowId: windowId) == nil
+        }
     }
 
     func shouldDelayManagedReplacementDestroy(_ candidate: PreparedDestroy) -> Bool {

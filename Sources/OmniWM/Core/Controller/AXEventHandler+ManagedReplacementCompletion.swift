@@ -336,6 +336,10 @@ extension AXEventHandler {
         if flushManagedReplacementBurstIfUnambiguouslyMatched(for: key) {
             return
         }
+        if closedWithoutTabSibling(burst, pid: key.pid) {
+            flushManagedReplacementBurst(for: key)
+            return
+        }
         scheduleManagedReplacementFlush(
             for: key,
             policy: policy,
