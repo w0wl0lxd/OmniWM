@@ -14826,6 +14826,28 @@
         }
       }
     },
+    "command.workspace.moveWindowToMonitor.next" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move Focused Window to Next Monitor in Order"
+          }
+        }
+      }
+    },
+    "command.workspace.moveWindowToMonitor.previous" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Move Focused Window to Previous Monitor in Order"
+          }
+        }
+      }
+    },
     "command.workspace.moveWindowToMonitor.right" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
