@@ -12,6 +12,27 @@ final class AnimationDriver {
     private var nextGestureSessionID: UInt64 = 1
     private static let gestureLivenessInterval: TimeInterval = 1
     var gestureLivenessNow: @MainActor () -> TimeInterval = { CACurrentMediaTime() }
+    private var sampleTimes: [WorkspaceDescriptor.ID: TimeInterval] = [:]
+    var mediaTime: @MainActor () -> TimeInterval = { CACurrentMediaTime() }
+
+    func sampleTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
+        let time = max(mediaTime(), sampleTimes[workspaceId] ?? -.infinity)
+        if hasMotion(in: workspaceId), !hasGesture(in: workspaceId) {
+            sampleTimes[workspaceId] = time
+        }
+        return time
+    }
+
+    func advanceSampleTime(in workspaceId: WorkspaceDescriptor.ID, to targetTime: TimeInterval) -> TimeInterval {
+        guard targetTime.isFinite else { return targetTime }
+        let time = max(targetTime, sampleTimes[workspaceId] ?? -.infinity)
+        sampleTimes[workspaceId] = time
+        return time
+    }
+
+    func endSampling(in workspaceId: WorkspaceDescriptor.ID) {
+        sampleTimes.removeValue(forKey: workspaceId)
+    }
 
     func hasMotion(in workspaceId: WorkspaceDescriptor.ID) -> Bool {
         motions[workspaceId] != nil
@@ -39,9 +60,11 @@ final class AnimationDriver {
     func liveViewOffset(
         in workspaceId: WorkspaceDescriptor.ID,
         semanticOffset: CGFloat,
-        at time: TimeInterval = CACurrentMediaTime()
+        at time: TimeInterval? = nil
     ) -> CGFloat? {
-        renderOffsets(in: workspaceId, semanticOffset: semanticOffset, at: time).liveOffset
+        renderOffsets(
+            in: workspaceId, semanticOffset: semanticOffset, at: time ?? sampleTime(in: workspaceId)
+        ).liveOffset
     }
 
     func renderOffsets(
@@ -82,8 +105,9 @@ final class AnimationDriver {
         in workspaceId: WorkspaceDescriptor.ID,
         localState: ViewportState,
         storeOffset: CGFloat,
-        at time: TimeInterval = CACurrentMediaTime()
+        at time: TimeInterval? = nil
     ) -> CGFloat {
+        let time = time ?? sampleTime(in: workspaceId)
         let transition = localState.offsetTransition
         switch transition.kind {
         case .spring,
@@ -218,6 +242,7 @@ final class AnimationDriver {
     func removeMotions<S: Sequence>(for workspaceIds: S) where S.Element == WorkspaceDescriptor.ID {
         for workspaceId in workspaceIds {
             motions.removeValue(forKey: workspaceId)
+            endSampling(in: workspaceId)
         }
     }
 }
@@ -323,8 +348,9 @@ extension AnimationDriver {
         previous: ViewportState?,
         next: ViewportState,
         transition: OffsetTransition,
-        at time: TimeInterval = CACurrentMediaTime()
+        at time: TimeInterval? = nil
     ) {
+        let time = time ?? sampleTime(in: workspaceId)
         recordViewportCommitTrace(
             workspaceId: workspaceId,
             previous: previous,

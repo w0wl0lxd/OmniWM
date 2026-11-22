@@ -58,16 +58,18 @@ extension NiriLayoutHandler {
         else { return }
         let engine = target.engine
         let monitor = target.monitor
+        let driver = controller.workspaceManager.animationDriver
+        let targetTime = driver.advanceSampleTime(in: wsId, to: targetTime)
+        controller.animationClock.beginPresentation(at: targetTime)
 
         let scrollTrace = ScrollTickTrace.shared.isActive
         let animsStart = scrollTrace ? CACurrentMediaTime() : 0
         let windowAnimationsRunning = engine.tickAllWindowAnimations(in: wsId, at: targetTime)
         let columnAnimationsRunning = engine.tickAllColumnAnimations(in: wsId, at: targetTime)
-        let viewportTick = controller.workspaceManager.animationDriver.tickResult(in: wsId, at: targetTime)
+        let viewportTick = driver.tickResult(in: wsId, at: targetTime)
         applyExpiredViewportGesture(viewportTick, workspaceId: wsId, controller: controller)
         controller.mouseEventHandler.handleLiveEdgeScrollTick(in: wsId, at: targetTime)
-        let viewportMotionRunning = viewportTick.isRunning
-            || controller.workspaceManager.animationDriver.hasEdgeScroll(in: wsId)
+        let viewportMotionRunning = viewportTick.isRunning || driver.hasEdgeScroll(in: wsId)
         let animsMs = scrollTrace ? (CACurrentMediaTime() - animsStart) * 1000 : 0
         let state = controller.workspaceManager.niriViewportState(for: wsId)
         let animationsOngoing = viewportMotionRunning
@@ -92,6 +94,8 @@ extension NiriLayoutHandler {
         }
 
         if !animationsOngoing {
+            driver.endSampling(in: wsId)
+            controller.animationClock.endPresentation()
             finalizeAnimation()
             controller.layoutRefreshController.hideInactiveWorkspaces(
                 activeWorkspaceIds: activeWorkspaceIds(controller: controller)
@@ -99,6 +103,10 @@ extension NiriLayoutHandler {
             controller.layoutRefreshController.stopScrollAnimation(for: displayId)
             controller.mouseEventHandler.handleNiriAnimationsSettled(in: wsId)
         }
+    }
+
+    func animationSampleTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
+        controller?.workspaceManager.animationDriver.sampleTime(in: workspaceId) ?? CACurrentMediaTime()
     }
 
     private func activeWorkspaceIds(controller: WMController) -> Set<WorkspaceDescriptor.ID> {

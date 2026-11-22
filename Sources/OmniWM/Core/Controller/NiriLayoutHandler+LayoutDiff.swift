@@ -292,6 +292,7 @@ extension NiriLayoutHandler {
             scale: snapshot.monitor.scale
         )
 
+        let sampleTime = animationSampleTime(in: pass.wsId)
         return pass.engine.calculateCombinedLayoutUsingPools(
             in: pass.wsId,
             monitor: pass.monitor,
@@ -299,11 +300,13 @@ extension NiriLayoutHandler {
             state: state,
             workingArea: area,
             animationTime: animationTime,
+            sampleTime: sampleTime,
             viewOffsetOverride: controller.map {
                 $0.workspaceManager.animationDriver.plannedRenderOffset(
                     in: pass.wsId,
                     localState: state,
-                    storeOffset: $0.workspaceManager.niriViewportState(for: pass.wsId).viewOffset
+                    storeOffset: $0.workspaceManager.niriViewportState(for: pass.wsId).viewOffset,
+                    at: sampleTime
                 )
             },
             isSettled: isSettled,
