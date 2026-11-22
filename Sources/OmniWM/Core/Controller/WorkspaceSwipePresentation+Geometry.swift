@@ -4,6 +4,30 @@
 import AppKit
 
 extension WorkspaceSwipePresentation {
+    private var isLayoutMoving: Bool {
+        guard let refreshController else { return false }
+        return hasPresentation
+            || !refreshController.niriHandler.scrollAnimationByDisplay.isEmpty
+            || !refreshController.dwindleHandler.dwindleAnimationByDisplay.isEmpty
+            || refreshController.layoutState.closingAnimationsByDisplay.contains { !$0.value.isEmpty }
+    }
+
+    func warmPreviewsAfterMotion() {
+        guard warmTask == nil else { return }
+        warmTask = Task { [weak self, warmSleep] in
+            repeat {
+                do {
+                    try await warmSleep(.milliseconds(750))
+                } catch {
+                    return
+                }
+            } while self?.isLayoutMoving == true
+            guard let self, !Task.isCancelled else { return }
+            warmTask = nil
+            warmPreviews()
+        }
+    }
+
     func warmPreviews() {
         guard preparation == nil,
               let controller, controller.hasStartedServices,

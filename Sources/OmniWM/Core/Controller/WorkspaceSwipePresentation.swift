@@ -23,6 +23,8 @@ final class WorkspaceSwipePresentation {
     }
 
     var handoffSleep: @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    var warmSleep: @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+    var warmTask: Task<Void, Never>?
 
     init(
         refreshController: LayoutRefreshController,

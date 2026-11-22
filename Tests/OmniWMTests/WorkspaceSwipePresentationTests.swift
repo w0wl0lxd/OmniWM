@@ -1269,6 +1269,76 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         XCTAssertEqual(fixture.driver.streams[0].request.pixelWidth, Int(ceil(settledWidth)))
     }
 
+    func testEffectPlanWarmsPreviewsOnlyAfterLayoutMotionEnds() async throws {
+        let (fixture, sleeper) = try deferredWarmupFixture()
+        let refreshController = fixture.controller.layoutRefreshController
+        let source = try XCTUnwrap(fixture.controller.workspaceManager.activeWorkspace(on: fixture.monitor.id)?.id)
+        refreshController.startScrollAnimation(for: source)
+        XCTAssertEqual(refreshController.niriHandler.scrollAnimationByDisplay[fixture.monitor.displayId], source)
+
+        refreshController.applyEffectPlan(EffectPlan(), controller: fixture.controller)
+
+        XCTAssertFalse(fixture.preview.isWarming)
+        let warm = try XCTUnwrap(fixture.swipe.warmTask)
+        await sleeper.waitForPendingSleeps(1)
+        sleeper.resumeNext()
+        await sleeper.waitForPendingSleeps(1)
+        XCTAssertFalse(fixture.preview.isWarming)
+        XCTAssertTrue(fixture.driver.streams.isEmpty)
+
+        refreshController.niriHandler.scrollAnimationByDisplay.removeAll()
+        sleeper.resumeNext()
+        await warm.value
+
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertTrue(fixture.preview.isWarming)
+        try await fixture.driver.waitForStarts(1)
+    }
+
+    func testDeferredWarmupCoalescesEffectPlansAndRechecksItsGates() async throws {
+        let (fixture, sleeper) = try deferredWarmupFixture()
+        let refreshController = fixture.controller.layoutRefreshController
+
+        refreshController.applyEffectPlan(EffectPlan(), controller: fixture.controller)
+        refreshController.applyEffectPlan(EffectPlan(), controller: fixture.controller)
+
+        let warm = try XCTUnwrap(fixture.swipe.warmTask)
+        await sleeper.waitForPendingSleeps(1)
+        XCTAssertEqual(sleeper.requestedDurations, [.milliseconds(750)])
+        fixture.controller.hasStartedServices = false
+        sleeper.resumeNext()
+        await warm.value
+
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertFalse(fixture.preview.isWarming)
+        XCTAssertTrue(fixture.driver.streams.isEmpty)
+    }
+
+    func testResetCancelsDeferredWarmup() async throws {
+        let (fixture, sleeper) = try deferredWarmupFixture()
+        let refreshController = fixture.controller.layoutRefreshController
+        refreshController.applyEffectPlan(EffectPlan(), controller: fixture.controller)
+        let warm = try XCTUnwrap(fixture.swipe.warmTask)
+        await sleeper.waitForPendingSleeps(1)
+
+        refreshController.resetState()
+        await warm.value
+
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertFalse(fixture.preview.isWarming)
+        XCTAssertTrue(fixture.driver.streams.isEmpty)
+    }
+
+    func testGestureEndWarmsPreviewsImmediately() throws {
+        let (fixture, sleeper) = try deferredWarmupFixture()
+
+        fixture.swipe.stopPreparing(warm: true)
+
+        XCTAssertTrue(fixture.preview.isWarming)
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertTrue(sleeper.requestedDurations.isEmpty)
+    }
+
     func testTurningFeaturesOffReleasesThePreviewAndItsCacheOnlyWhenNothingUsesThem() async throws {
         typealias Change = @MainActor (WMController) -> Void
         let swipesOn: Change = { $0.settings.gestures.workspaceSwipeEnabled = true }
@@ -1458,6 +1528,19 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
             controller: controller, driver: driver, capture: capture, preview: preview, swipe: swipe,
             monitor: monitor, handle: handle
         )
+    }
+
+    private func deferredWarmupFixture() throws -> (PreviewFixture, ManualSleeper) {
+        let fixture = try previewFixture()
+        let sleeper = ManualSleeper()
+        fixture.swipe.warmSleep = { try await sleeper.sleep(for: $0) }
+        fixture.controller.hasStartedServices = true
+        fixture.controller.settings.gestures.workspaceSwipeEnabled = true
+        addTeardownBlock { @MainActor in
+            fixture.swipe.warmTask?.cancel()
+            fixture.controller.hasStartedServices = false
+        }
+        return (fixture, sleeper)
     }
 
     private func requireContactWarmup(_ fixture: PreviewFixture) throws {
