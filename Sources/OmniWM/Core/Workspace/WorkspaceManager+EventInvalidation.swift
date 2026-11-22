@@ -4,13 +4,21 @@
 import Foundation
 
 extension WorkspaceManager {
-    func noteInvalidation(for event: WMEvent) {
+    func noteInvalidation(for event: WMEvent, changesOnlyTitle: Bool = false) {
         switch event.reconcileDomain {
-        case .window: noteWindowInvalidation(for: event)
+        case .window: noteWindowInvalidation(for: event, changesOnlyTitle: changesOnlyTitle)
         case .focus: noteFocusEventInvalidation(for: event)
         case .session: noteSessionEventInvalidation(for: event)
         case .viewport: break
         }
+    }
+
+    func changesOnlyManagedReplacementTitle(_ event: WMEvent) -> Bool {
+        guard case let .managedReplacementMetadataChanged(token, _, _, metadata?, _) = event,
+              var current = managedReplacementMetadata(for: token)
+        else { return false }
+        current.title = metadata.title
+        return current == metadata
     }
 
     private func noteHiddenStateInvalidation(
@@ -33,7 +41,7 @@ extension WorkspaceManager {
         )
     }
 
-    private func noteWindowInvalidation(for event: WMEvent) {
+    private func noteWindowInvalidation(for event: WMEvent, changesOnlyTitle: Bool) {
         switch event {
         case let .windowAdmitted(_, workspaceId, _, _, _, _, _, _, _, _, _, _),
              let .windowModeChanged(_, workspaceId, _, _, _),
@@ -42,7 +50,11 @@ extension WorkspaceManager {
             noteInvalidation(workspaceId: workspaceId, domains: [.workspace, .layout, .focus])
 
         case let .managedReplacementMetadataChanged(_, workspaceId, _, _, _):
-            noteInvalidation(workspaceId: workspaceId, domains: [.layout, .focus])
+            noteInvalidation(
+                workspaceId: workspaceId,
+                domains: [.layout, .focus],
+                runtimeDomains: changesOnlyTitle ? .focus : nil
+            )
 
         case let .hiddenStateChanged(token, workspaceId, _, hiddenState, _):
             noteHiddenStateInvalidation(hiddenState, of: token, in: workspaceId)
