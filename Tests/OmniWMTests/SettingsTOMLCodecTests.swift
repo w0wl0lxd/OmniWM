@@ -727,6 +727,31 @@ final class SettingsTOMLCodecTests: XCTestCase {
     }
 
     @MainActor
+    func testWorkspaceSwipeSensitivityRoundTripsClampsAndDefaultsWhenOmitted() throws {
+        let range = GestureSettings.workspaceSwipeSensitivityRange
+        for (value, expected) in [
+            (2.5, 2.5), (0, range.lowerBound), (range.upperBound.nextUp, range.upperBound),
+            (.nan, 1.0), (.infinity, 1.0)
+        ] {
+            let settings = makeSettingsStore()
+            settings.gestures.workspaceSwipeSensitivity = value
+            XCTAssertEqual(settings.gestures.workspaceSwipeSensitivity, expected)
+            let decoded = try SettingsTOMLCodec.decode(SettingsTOMLCodec.encode(settings.toExport()))
+            XCTAssertEqual(decoded.gestures.workspaceSwipeSensitivity, expected)
+            settings.gestures.workspaceSwipeSensitivity = 3
+            settings.gestures.apply(decoded.gestures)
+            XCTAssertEqual(settings.gestures.workspaceSwipeSensitivity, expected)
+        }
+
+        let settings = makeSettingsStore()
+        var export = SettingsExport.defaults()
+        export.gestures.workspaceSwipeSensitivity = nil
+        settings.gestures.workspaceSwipeSensitivity = 3
+        settings.gestures.apply(export.gestures)
+        XCTAssertEqual(settings.gestures.workspaceSwipeSensitivity, 1)
+    }
+
+    @MainActor
     func testHorizontalWorkspaceSwipeSelectionSurvivesFingerCountCollision() {
         var export = SettingsExport.defaults()
         export.gestures.scrollEnabled = true
