@@ -41,6 +41,24 @@ final class WorkspaceSkipEmptyNavigationTests: XCTestCase {
         XCTAssertEqual(cycle(fixture, isNext: true, steps: 3), [0, 2, 0])
     }
 
+    func testRelativeSwitchWrapsAtTheEndsByDefault() throws {
+        let fixture = try makeFixture(occupied: [0, 1, 2, 3, 4])
+        defer { fixture.controller.deadlineWheel.stop() }
+
+        XCTAssertEqual(cycle(fixture, isNext: false, steps: 1), [4])
+        XCTAssertEqual(cycle(fixture, isNext: true, steps: 1), [0])
+    }
+
+    func testRelativeSwitchStopsAtTheEndsWhenWrapAroundIsOff() throws {
+        let fixture = try makeFixture(occupied: [0, 1, 2, 3, 4])
+        defer { fixture.controller.deadlineWheel.stop() }
+        fixture.controller.settings.workspaces.wrapAround = false
+
+        XCTAssertEqual(cycle(fixture, isNext: false, steps: 1), [0])
+        XCTAssertEqual(cycle(fixture, isNext: true, steps: 5), [1, 2, 3, 4, 4])
+        XCTAssertEqual(cycle(fixture, isNext: false, steps: 5), [3, 2, 1, 0, 0])
+    }
+
     func testSkipEmptyReturnsNilWhenOnlyCurrentWorkspaceIsOccupied() throws {
         let fixture = try makeFixture(occupied: [0])
         defer { fixture.controller.deadlineWheel.stop() }
