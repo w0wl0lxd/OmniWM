@@ -601,6 +601,38 @@ final class WorkspaceMoveFocusBehaviorTests: XCTestCase {
         }
     }
 
+    func testInOrderMonitorMoveSendsWindowToTheOtherMonitor() throws {
+        for command in [WorkspaceAction.moveToNextMonitor, .moveToPreviousMonitor] {
+            let fixture = try makeMonitorMoveFixture(layout: .niri, followsFocus: false)
+            let manager = fixture.controller.workspaceManager
+            let moved = try addManagedWindow(
+                pid: 488_300,
+                windowId: command == .moveToNextMonitor ? 1 : 2,
+                to: fixture.sourceWorkspaceId,
+                controller: fixture.controller
+            )
+            try select(
+                moved,
+                in: fixture.sourceWorkspaceId,
+                on: fixture.sourceMonitor,
+                controller: fixture.controller,
+                focusRecorder: fixture.focusRecorder
+            )
+
+            try withBlockedLayoutRefreshes(
+                controller: fixture.controller,
+                affectedWorkspaceId: fixture.sourceWorkspaceId
+            ) {
+                XCTAssertEqual(fixture.controller.commandHandler.performCommand(.workspace(command)), .executed)
+                XCTAssertEqual(manager.workspace(for: moved.id), fixture.activeTargetWorkspaceId)
+                XCTAssertEqual(
+                    manager.activeWorkspace(on: fixture.targetMonitor.id)?.id,
+                    fixture.activeTargetWorkspaceId
+                )
+            }
+        }
+    }
+
     func testDirectMonitorMoveNoOpsWithoutFocusOrAdjacentMonitor() throws {
         let fixture = try makeMonitorMoveFixture(layout: .niri, followsFocus: false)
         let controller = fixture.controller

@@ -108,6 +108,10 @@ final class IPCCommandRouter {
             return moveFocusedWindow(toWorkspaceSlot: slotNumber)
         case let .moveToMonitor(ipcDirection):
             return moveFocusedWindowToMonitor(Direction(ipc: ipcDirection))
+        case .moveToNextMonitor:
+            return moveFocusedWindowToMonitorInOrder(previous: false)
+        case .moveToPreviousMonitor:
+            return moveFocusedWindowToMonitorInOrder(previous: true)
         }
     }
 
@@ -180,6 +184,17 @@ final class IPCCommandRouter {
               controller.workspaceManager.adjacentMonitor(from: monitorId, direction: direction) != nil
         else { return .notFound }
         return moveFocusedWindow(using: .workspace(.moveToMonitor(direction)))
+    }
+
+    private func moveFocusedWindowToMonitorInOrder(previous: Bool) -> ExternalCommandResult {
+        guard let token = controller.workspaceManager.selectedManagedToken,
+              let workspaceId = controller.workspaceManager.workspace(for: token),
+              let monitorId = controller.workspaceManager.monitorId(for: workspaceId),
+              (previous
+                  ? controller.workspaceManager.previousMonitor(from: monitorId)
+                  : controller.workspaceManager.nextMonitor(from: monitorId)) != nil
+        else { return .notFound }
+        return moveFocusedWindow(using: .workspace(previous ? .moveToPreviousMonitor : .moveToNextMonitor))
     }
 
     private func swapWorkspaceWithMonitor(direction: Direction) -> ExternalCommandResult {

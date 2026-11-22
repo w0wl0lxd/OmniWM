@@ -65,6 +65,46 @@ final class MoveWindowToMonitorIPCCommandTests: XCTestCase {
         )
     }
 
+    func testInOrderRequestsRoundTripAndParse() throws {
+        let cases: [(request: IPCCommandRequest, name: IPCCommandName, wire: String, words: [String])] = [
+            (
+                .workspace(.moveToNextMonitor),
+                .workspace(.moveToNextMonitor),
+                "move-to-monitor-next",
+                ["move-to-monitor", "next"]
+            ),
+            (
+                .workspace(.moveToPreviousMonitor),
+                .workspace(.moveToPreviousMonitor),
+                "move-to-monitor-previous",
+                ["move-to-monitor", "prev"]
+            )
+        ]
+
+        for entry in cases {
+            XCTAssertEqual(entry.request.name, entry.name)
+            XCTAssertEqual(try IPCCommandRequest(name: entry.name), entry.request)
+            XCTAssertThrowsError(try IPCCommandRequest(name: entry.name, argumentValues: [.direction(.left)]))
+
+            let data = try JSONEncoder().encode(entry.request)
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(object["name"] as? String, entry.wire)
+            XCTAssertNil(object["arguments"])
+            XCTAssertEqual(try JSONDecoder().decode(IPCCommandRequest.self, from: data), entry.request)
+
+            let descriptor = try XCTUnwrap(IPCAutomationManifest.commandDescriptor(for: entry.name))
+            XCTAssertEqual(descriptor.commandWords, entry.words)
+            XCTAssertTrue(descriptor.arguments.isEmpty)
+            XCTAssertEqual(descriptor.layoutCompatibility, .shared)
+
+            let parsed = try CLIParser.parse(arguments: ["omniwmctl", "command"] + entry.words)
+            guard case let .command(request) = parsed.request.payload else {
+                return XCTFail("Expected command request")
+            }
+            XCTAssertEqual(request, entry.request)
+        }
+    }
+
     func testCLIParserBuildsDirectionalMonitorMoveRequests() throws {
         for direction in directions {
             let parsed = try CLIParser.parse(
