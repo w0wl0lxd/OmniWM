@@ -56,12 +56,12 @@ final class WorkspaceSwipePreview {
     private let backdrop: WorkspaceSwipeBackdrop
     private let captureDisplay: @MainActor (Monitor, CGRect) async -> CGImage?
     private var sourceSnapshot: CGImage?
-    private var sourceSnapshotLayer: CALayer?
+    private(set) var sourceSnapshotLayer: CALayer?
     private(set) var sourceSnapshotTask: Task<Void, Never>?
     private var tokens: [WindowHandle: WindowToken] = [:]
     private var panel: WorkspaceSwipePreviewPanel?
-    private var sourceLayer: CALayer?
-    private var destinationLayer: CALayer?
+    private(set) var sourceLayer: CALayer?
+    private(set) var destinationLayer: CALayer?
     private var contents: [WindowHandle: [Content]] = [:]
     private(set) var isWarming = false
 
