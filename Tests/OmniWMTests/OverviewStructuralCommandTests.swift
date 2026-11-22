@@ -249,6 +249,17 @@ final class OverviewStructuralCommandTests: XCTestCase {
     }
 
     func testSelectedOverviewHandleMovesToActiveAdjacentMonitorWorkspaceWithoutAXFocus() throws {
+        try assertSelectedOverviewHandleMovesToActiveTargetWorkspace(with: .workspace(.moveToMonitor(.right)))
+    }
+
+    func testSelectedOverviewHandleMovesToTheNextAndPreviousMonitorWorkspaceWithoutAXFocus() throws {
+        for action in [WorkspaceAction.moveToNextMonitor, .moveToPreviousMonitor] {
+            XCTAssertTrue(OverviewStructuralActions.isStructuralHotkey(.workspace(action)), "\(action)")
+            try assertSelectedOverviewHandleMovesToActiveTargetWorkspace(with: .workspace(action))
+        }
+    }
+
+    private func assertSelectedOverviewHandleMovesToActiveTargetWorkspace(with command: HotkeyCommand) throws {
         let fixture = try makeFixture(layouts: [.niri])
         let sourceWorkspaceId = fixture.workspaceIds[0]
         let targetFrame = CGRect(x: 1600, y: 0, width: 1600, height: 900)
@@ -325,7 +336,7 @@ final class OverviewStructuralCommandTests: XCTestCase {
 
         let outcome = withBlockedLayoutRefreshes(fixture) {
             overview.executeStructuralHotkey(
-                .workspace(.moveToMonitor(.right)),
+                command,
                 selectedHandle: selected
             )
         }

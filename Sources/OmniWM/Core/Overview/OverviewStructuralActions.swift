@@ -71,6 +71,8 @@ final class OverviewStructuralActions {
         switch command {
         case .move,
              .workspace(.moveToMonitor),
+             .workspace(.moveToNextMonitor),
+             .workspace(.moveToPreviousMonitor),
              .windowMovement(.down),
              .windowMovement(.up),
              .windowMovement(.downOrToWorkspaceDown),
@@ -188,6 +190,16 @@ extension OverviewStructuralActions {
             return wmController.workspaceNavigationHandler.moveWindowToMonitor(
                 handle: selectedHandle,
                 direction: direction
+            )
+        case .moveToNextMonitor:
+            return wmController.workspaceNavigationHandler.moveWindowToMonitorInOrder(
+                handle: selectedHandle,
+                previous: false
+            )
+        case .moveToPreviousMonitor:
+            return wmController.workspaceNavigationHandler.moveWindowToMonitorInOrder(
+                handle: selectedHandle,
+                previous: true
             )
         case let .moveTo(index):
             return wmController.workspaceNavigationHandler.moveWindow(

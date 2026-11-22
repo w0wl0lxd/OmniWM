@@ -15,7 +15,19 @@ extension WorkspaceNavigationHandler {
     }
 
     func moveWindowToMonitorInOrder(previous: Bool) {
-        moveFocusedWindowToMonitor(direction: nil, focusPolicy: .configured) { manager, sourceMonitorId in
+        moveFocusedWindowToMonitor(
+            direction: nil,
+            focusPolicy: .configured,
+            target: Self.inOrderMonitor(previous: previous)
+        )
+    }
+
+    func moveWindowToMonitorInOrder(handle: WindowHandle, previous: Bool) -> StructuralMutationOutcome {
+        moveWindowToMonitor(handle: handle, direction: nil, target: Self.inOrderMonitor(previous: previous))
+    }
+
+    private static func inOrderMonitor(previous: Bool) -> (WorkspaceManager, Monitor.ID) -> Monitor? {
+        { manager, sourceMonitorId in
             previous ? manager.previousMonitor(from: sourceMonitorId) : manager.nextMonitor(from: sourceMonitorId)
         }
     }

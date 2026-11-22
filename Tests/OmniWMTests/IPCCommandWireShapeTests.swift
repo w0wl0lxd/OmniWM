@@ -97,6 +97,8 @@ final class IPCCommandWireShapeTests: XCTestCase {
         #"{"name":"move-to-workspace-down"}"#,
         #"{"arguments":{"direction":"left","workspaceNumber":2},"name":"move-to-workspace-on-monitor"}"#,
         #"{"arguments":{"direction":"left"},"name":"move-to-monitor"}"#,
+        #"{"name":"move-to-monitor-next"}"#,
+        #"{"name":"move-to-monitor-previous"}"#,
         #"{"name":"focus-monitor-previous"}"#,
         #"{"name":"focus-monitor-next"}"#,
         #"{"name":"focus-monitor-last"}"#,

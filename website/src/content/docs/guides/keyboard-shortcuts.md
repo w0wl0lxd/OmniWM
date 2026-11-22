@@ -129,7 +129,7 @@ The pull action treats the focused column as the destination and does nothing wh
 | Focus Last Active Monitor | `` Control + Command + ` `` | `Shared` |
 | Move Workspace to Monitor on Left / Right / Above / Below | `Unassigned` | `Shared` |
 | Move Focused Window to Monitor on Left / Right / Above / Below | `Unassigned` | `Shared` |
-| Move Focused Window to Next / Previous Monitor in Order | `Unassigned` | `Shared` |
+| Move Focused Window to Next / Previous Monitor in Order (**Unreleased:** available when building from `main`) | `Unassigned` | `Shared` |
 
 The workspace-to-monitor actions target the active workspace and intentionally use the same temporary runtime override as `omniwmctl workspace move-to-monitor --force`. They do not rewrite the workspace's Home Monitor or swap workspaces, and unsafe fullscreen, hidden-app, scratchpad, or focus states still block the move.
 

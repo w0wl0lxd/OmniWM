@@ -137,7 +137,7 @@ final class MoveWindowToMonitorIPCCommandTests: XCTestCase {
         )
         XCTAssertEqual(
             Set(CLICompletionSelector.suggestions(words: ["omniwmctl", "command", "move-to-monitor", ""])),
-            Set(["left", "right", "up", "down"])
+            Set(["left", "right", "up", "down", "next", "prev"])
         )
     }
 
