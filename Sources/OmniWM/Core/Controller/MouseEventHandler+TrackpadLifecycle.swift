@@ -107,7 +107,8 @@ extension MouseEventHandler {
                 wsId: lockedContext.workspaceId,
                 monitor: monitor,
                 orientation: orientation,
-                timestamp: timestamp
+                timestamp: timestamp,
+                previousTimestamp: metrics.previousTimestamp
             )
         case let .workspaceSwitch(axis):
             dispatchWorkspaceSwipeFrame(
