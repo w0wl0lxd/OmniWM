@@ -3080,6 +3080,57 @@ final class ShellWidgetClickTests: XCTestCase {
         XCTAssertFalse(WorkspaceBarMenuButton.contains(event(15), in: window))
     }
 
+    func testTheHiddenBarPanelButtonDoesNotDismissThePanelItToggles() async throws {
+        executionTimeAllowance = failureBound
+        let harness = try harness("""
+        function render(ctx)
+            return ui.row{
+                ui.box{ w = 10, h = 10, onClick = "hidden-bar panel" },
+                ui.box{ w = 10, h = 10, onClick = "shell menu" },
+                ui.box{ w = 10, h = 10, onClick = "toggle-system-stats" },
+            }
+        end
+        """)
+        defer { harness.close() }
+        var layoutChanges = harness.layoutChanges.makeAsyncIterator()
+        try await layoutChanges.change()
+        let surface = try harness.barSurface()
+        let window = NSWindow(
+            contentRect: CGRect(x: 0, y: 0, width: 30, height: 10),
+            styleMask: .borderless,
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.contentView = surface.view
+        surface.view.frame = CGRect(x: 0, y: 0, width: 30, height: 10)
+        let event = { (x: CGFloat) in
+            NSEvent.mouseEvent(
+                with: .leftMouseDown,
+                location: CGPoint(x: x, y: 5),
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: 1
+            )
+        }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let hiddenBar = HiddenBarController(settings: SettingsStore(
+            persistence: SettingsFilePersistence(directory: directory, startWatching: false, deferSaves: false),
+            runtimeState: RuntimeStateStore(directory: directory, deferSaves: false),
+            autosaveEnabled: false
+        ))
+
+        XCTAssertTrue(hiddenBar.isExemptWindow(window, event: event(5)))
+        XCTAssertTrue(hiddenBar.isExemptWindow(window, event: event(15)))
+        XCTAssertFalse(hiddenBar.isExemptWindow(window, event: event(25)))
+        XCTAssertFalse(WorkspaceBarMenuButton.contains(event(5), in: window))
+    }
+
     func testBarsCarryTheDragPresentation() async throws {
         executionTimeAllowance = failureBound
         let workspaceId = WorkspaceDescriptor.ID()

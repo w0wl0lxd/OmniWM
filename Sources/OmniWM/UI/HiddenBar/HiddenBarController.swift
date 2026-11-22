@@ -71,8 +71,8 @@ final class HiddenBarController {
         }
     }
 
-    func isExemptWindow(_ window: NSWindow) -> Bool {
-        statusItems.ownsStatusItemWindow(window) || WorkspaceBarMenuButton.contains(NSApp.currentEvent, in: window)
+    func isExemptWindow(_ window: NSWindow, event: NSEvent? = NSApp.currentEvent) -> Bool {
+        statusItems.ownsStatusItemWindow(window) || WorkspaceBarMenuButton.contains(event, in: window)
     }
 
     var isHidingAvailable: Bool {
