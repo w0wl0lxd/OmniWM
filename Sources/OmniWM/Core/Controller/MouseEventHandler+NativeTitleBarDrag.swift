@@ -5,6 +5,8 @@ import AppKit
 import Foundation
 
 extension MouseEventHandler {
+    private static let slideDragSlop: CGFloat = 4
+
     func nativeTitleBarDragCandidate(
         windowIdUnderPointer: Int?
     ) -> (token: WindowToken, workspaceId: WorkspaceDescriptor.ID)? {
@@ -50,6 +52,7 @@ extension MouseEventHandler {
         {
             state.leftPressWasDragged = true
         }
+        if keepsSlideForPress(at: location) { return }
         if let start = state.nativeResizeStart, !start.wasDragged,
            abs(location.x - start.location.x) <= FrameTolerance.frameWrite,
            abs(location.y - start.location.y) <= FrameTolerance.frameWrite
@@ -63,6 +66,36 @@ extension MouseEventHandler {
         }
         beginNativeTitleBarDragIfNeeded(button: button)
         handleDeferredNativeTitleBarFrameIfNeeded(for: deferredToken)
+    }
+
+    private func keepsSlideForPress(at location: CGPoint) -> Bool {
+        guard let press = state.leftPressLocation,
+              abs(location.x - press.x) < Self.slideDragSlop,
+              abs(location.y - press.y) < Self.slideDragSlop
+        else { return false }
+        let token: WindowToken? = if let drag = state.nativeTitleBarDrag {
+            drag.phase == .armed ? drag.token : nil
+        } else {
+            state.awaitsNativeTitleBarDragTarget ? state.nativeTitleBarDragFallbackToken : nil
+        }
+        guard let token, let controller,
+              let pressed = controller.workspaceManager.entry(for: token)
+        else { return false }
+        return engineRunningNiriSlide(in: pressed.workspaceId, controller: controller) != nil
+    }
+
+    private func settleSlidePressBeforeRelease() {
+        guard state.leftPressWasDragged,
+              let drag = state.nativeTitleBarDrag,
+              drag.phase == .armed,
+              let controller,
+              let pressed = controller.workspaceManager.entry(for: drag.token)
+        else { return }
+        if engineRunningNiriSlide(in: pressed.workspaceId, controller: controller) == nil {
+            beginNativeTitleBarDragIfNeeded(button: .left)
+        } else {
+            controller.axManager.forceApplyNextFrame(for: drag.token.windowId)
+        }
     }
 
     private func finishNiriSlideBeforeUnannotatedDrag() {
@@ -297,7 +330,10 @@ extension MouseEventHandler {
                 || point.y < frame.minY + inset || point.y >= frame.maxY - inset)
     }
 
-    private func finishNiriSlideBeforeDrag(in workspaceId: WorkspaceDescriptor.ID, controller: WMController) {
+    private func engineRunningNiriSlide(
+        in workspaceId: WorkspaceDescriptor.ID,
+        controller: WMController
+    ) -> NiriLayoutEngine? {
         guard controller.isNiriStrip(workspaceId),
               let engine = controller.niriEngine,
               !engine.isLiveColumnMoveActive(in: workspaceId),
@@ -308,7 +344,12 @@ extension MouseEventHandler {
                   engine: engine,
                   workspaceId: workspaceId
               )
-        else { return }
+        else { return nil }
+        return engine
+    }
+
+    private func finishNiriSlideBeforeDrag(in workspaceId: WorkspaceDescriptor.ID, controller: WMController) {
+        guard let engine = engineRunningNiriSlide(in: workspaceId, controller: controller) else { return }
         controller.niriLayoutHandler.cancelAnimationMotion(for: workspaceId)
         refreshLiveColumnLayout(in: workspaceId, engine: engine)
         MouseTrace.record("drag finished the running slide ws=\(workspaceId)")
@@ -332,7 +373,9 @@ extension MouseEventHandler {
     }
 
     func finishNativeTitleBarDragIfNeeded(button: MouseButton) {
-        guard button == .left, var drag = prepareNativeTitleBarDragForSettlement(button: button) else { return }
+        guard button == .left else { return }
+        settleSlidePressBeforeRelease()
+        guard var drag = prepareNativeTitleBarDragForSettlement(button: button) else { return }
         switch drag.phase {
         case .armed,
              .dragging:
