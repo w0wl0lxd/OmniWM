@@ -14,9 +14,25 @@ extension WorkspaceNavigationHandler {
         moveFocusedWindowToMonitor(direction: direction, focusPolicy: .alwaysFollow)
     }
 
+    func moveWindowToMonitorInOrder(previous: Bool) {
+        moveFocusedWindowToMonitor(direction: nil, focusPolicy: .configured) { manager, sourceMonitorId in
+            previous ? manager.previousMonitor(from: sourceMonitorId) : manager.nextMonitor(from: sourceMonitorId)
+        }
+    }
+
     private func moveFocusedWindowToMonitor(
         direction: Direction,
         focusPolicy: WorkspaceMoveFocusPolicy
+    ) {
+        moveFocusedWindowToMonitor(direction: direction, focusPolicy: focusPolicy) { manager, sourceMonitorId in
+            manager.adjacentMonitor(from: sourceMonitorId, direction: direction)
+        }
+    }
+
+    private func moveFocusedWindowToMonitor(
+        direction: Direction?,
+        focusPolicy: WorkspaceMoveFocusPolicy,
+        target: (WorkspaceManager, Monitor.ID) -> Monitor?
     ) {
         guard let controller else { return }
         guard let token = controller.workspaceManager.selectedManagedToken else { return }
@@ -25,8 +41,10 @@ extension WorkspaceNavigationHandler {
         saveNiriViewportState(for: currentWsId)
         guard case let .changed(mutation) = moveWindowToMonitor(
             handle: WindowHandle(id: token),
-            direction: direction
-        ) else { return }
+            direction: direction,
+            target: target
+        )
+        else { return }
         finishWorkspaceMove(mutation, focusPolicy: focusPolicy)
     }
 
@@ -34,19 +52,27 @@ extension WorkspaceNavigationHandler {
         handle: WindowHandle,
         direction: Direction
     ) -> StructuralMutationOutcome {
+        moveWindowToMonitor(handle: handle, direction: direction) { manager, sourceMonitorId in
+            manager.adjacentMonitor(from: sourceMonitorId, direction: direction)
+        }
+    }
+
+    private func moveWindowToMonitor(
+        handle: WindowHandle,
+        direction requestedDirection: Direction?,
+        target: (WorkspaceManager, Monitor.ID) -> Monitor?
+    ) -> StructuralMutationOutcome {
         guard let controller,
               controller.workspaceManager.entry(for: handle.id)?.target.hostedMetadata?.role.parent == nil,
               let sourceWorkspaceId = controller.workspaceManager.workspace(for: handle.id),
-              let sourceMonitorId = controller.workspaceManager.monitorId(for: sourceWorkspaceId),
-              let targetMonitor = controller.workspaceManager.adjacentMonitor(
-                  from: sourceMonitorId,
-                  direction: direction
-              ),
+              let sourceMonitor = controller.workspaceManager.monitorForWorkspace(sourceWorkspaceId),
+              let targetMonitor = target(controller.workspaceManager, sourceMonitor.id),
               let targetWorkspace = controller.workspaceManager.activeWorkspaceOrFirst(on: targetMonitor.id),
               targetWorkspace.id != sourceWorkspaceId
         else {
             return .unchanged
         }
+        let direction = requestedDirection ?? Direction(travelingFrom: sourceMonitor, to: targetMonitor)
 
         let targetIsNiri = controller.workspaceManager.activeLayoutKind(for: targetWorkspace.id) == .niri
         let anchorToken: WindowToken? = targetIsNiri ? Self.spatialNeighborToken(

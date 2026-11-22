@@ -201,6 +201,16 @@ extension IPCAutomationManifest {
             arguments: [.direction]
         ),
         .init(
+            commandWords: ["move-to-monitor", "next"],
+            name: .workspace(.moveToNextMonitor),
+            summary: "Move the focused window to the active workspace on the next monitor in order."
+        ),
+        .init(
+            commandWords: ["move-to-monitor", "prev"],
+            name: .workspace(.moveToPreviousMonitor),
+            summary: "Move the focused window to the active workspace on the previous monitor in order."
+        ),
+        .init(
             commandWords: ["focus-monitor", "prev"],
             name: .monitorFocus(.previous),
             summary: "Move interaction focus to the previous monitor."

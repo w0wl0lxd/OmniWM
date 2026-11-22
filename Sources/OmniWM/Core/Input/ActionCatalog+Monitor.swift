@@ -61,6 +61,20 @@ extension ActionCatalog {
                 keywords: windowMonitorMoveKeywords
             ),
             action(
+                id: "moveWindowToMonitor.next",
+                command: .workspace(.moveToNextMonitor),
+                category: .monitor,
+                binding: .unassigned,
+                keywords: windowMonitorMoveKeywords
+            ),
+            action(
+                id: "moveWindowToMonitor.previous",
+                command: .workspace(.moveToPreviousMonitor),
+                category: .monitor,
+                binding: .unassigned,
+                keywords: windowMonitorMoveKeywords
+            ),
+            action(
                 id: "moveWindowToMonitor.right",
                 command: .workspace(.moveToMonitor(.right)),
                 category: .monitor,

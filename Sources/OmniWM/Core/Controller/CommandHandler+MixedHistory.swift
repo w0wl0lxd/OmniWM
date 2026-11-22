@@ -17,6 +17,8 @@ extension CommandHandler {
                  .moveUp,
                  .moveDown,
                  .moveToMonitor,
+                 .moveToNextMonitor,
+                 .moveToPreviousMonitor,
                  .moveToSlot: break
             default: return nil
             }

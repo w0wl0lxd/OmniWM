@@ -243,7 +243,9 @@ extension IPCJSONWriter {
              .previous,
              .backAndForth,
              .moveUp,
-             .moveDown:
+             .moveDown,
+             .moveToNextMonitor,
+             .moveToPreviousMonitor:
             break
         }
     }
