@@ -19,6 +19,7 @@ final class MultitouchBinding {
         let ref: DeviceRef
         let registryId: UInt64
         let senderId: UInt64?
+        var surfaceAspectRatio: CGFloat = 1
     }
 
     enum EnumerationOutcome: Equatable, Sendable {
