@@ -27,6 +27,7 @@ final class WorkspaceManager {
     var pendingRuntimeMonitorOverrideClearWorkspaceIds: Set<WorkspaceDescriptor.ID> = []
     var isDrainingPendingRuntimeMonitorOverrideClears = false
     var quietArrivalTokens: Set<WindowToken> = []
+    var lastNonOwnedFocusOwner: NativeFocusOwner = .none
     private lazy var persistedRestoreCatalogStore = PersistedRestoreCatalogStore(
         bootCatalog: settings.loadPersistedWindowRestoreCatalog(),
         buildSnapshot: { [unowned self] in self.persistedWindowRestoreCatalogBuildSnapshot() },
