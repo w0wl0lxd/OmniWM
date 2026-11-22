@@ -41,6 +41,7 @@ final class AXEventHandler {
     private var nextManagedReplacementEventSequence: UInt64 = 0
     var visibleWindowInfoProvider: () -> [WindowServerInfo]
     var windowInfoProvider: (UInt32) -> WindowServerInfo?
+    var processWindowFramesProvider: @MainActor (pid_t) -> [Int: CGRect]? = windowFrames
     var windowTitleProvider: @MainActor (UInt32) -> String? = { AXWindowService.titlePreferFast(windowId: $0) }
     var windowInfoBatchProvider: (Set<UInt32>) async throws -> [UInt32: WindowServerInfo]?
     var createdWindowAXRefProvider: (WindowToken) async throws -> AXWindowRef? = lookupCreatedWindowIdentity
@@ -434,10 +435,9 @@ extension AXEventHandler {
             return
         }
 
-        let delay = policy.graceDelay
         pendingManagedReplacementTasks[key] = Task { @MainActor [weak self] in
             do {
-                try await Task.sleep(for: delay)
+                try await Task.sleep(for: policy.graceDelay)
             } catch {
                 return
             }
