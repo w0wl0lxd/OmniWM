@@ -440,6 +440,18 @@ extension IPCAutomationManifest {
             summary: "Toggle the hidden-bar items panel."
         ),
         .init(
+            commandWords: ["hidden-bar", "reveal"],
+            name: .hiddenBarReveal,
+            summary: "Show a hidden app's menu-bar items, then hide them again.",
+            arguments: [.bundleID]
+        ),
+        .init(
+            commandWords: ["hidden-bar", "reveal"],
+            name: .hiddenBarReveal,
+            summary: "Show a hidden app's menu-bar items for a number of seconds, then hide them again.",
+            arguments: [.bundleID, .revealSeconds]
+        ),
+        .init(
             name: .presentation(.quakeTerminal),
             summary: "Toggle the configured Quake terminal."
         ),

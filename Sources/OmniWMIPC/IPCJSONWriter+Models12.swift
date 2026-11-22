@@ -4,6 +4,27 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func value(_ value: borrowing IPCShellRequest) throws {
+        switch value {
+        case let .set(key, text):
+            try shellRequestSet(key, text)
+        case let .unset(key):
+            try shellRequestUnset(key)
+        case let .toggle(widget):
+            try shellRequestToggle(widget)
+        case let .profile(name):
+            try shellRequestProfile(name)
+        case let .theme(name, scheme):
+            try shellRequestTheme(name, scheme)
+        case let .eject(widget):
+            try shellRequestEject(widget)
+        case let .initialize(widget):
+            try shellRequestInitialize(widget)
+        case let .trigger(widget, name, text):
+            try shellRequestTrigger(widget, name, text)
+        }
+    }
+
     mutating func value(_ value: borrowing IPCSubscribeRequest) throws {
         begin(123)
         var first = true

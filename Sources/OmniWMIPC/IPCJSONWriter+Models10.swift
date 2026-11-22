@@ -4,6 +4,33 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func fields0(_ value: borrowing IPCQuerySelectors, _ first: inout Bool) throws {
+        if let fieldValue = value.app {
+            self.key("app", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.bundleId {
+            self.key("bundleId", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.current {
+            self.key("current", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.display {
+            self.key("display", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.floating {
+            self.key("floating", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.focused {
+            self.key("focused", &first)
+            try self.value(fieldValue)
+        }
+    }
+
     mutating func fields1(_ value: borrowing IPCQuerySelectors, _ first: inout Bool) throws {
         if let fieldValue = value.main {
             self.key("main", &first)
@@ -234,27 +261,6 @@ extension IPCJSONWriter {
             try ruleRequestMove(id, position)
         case let .apply(target):
             try ruleRequestApply(target)
-        }
-    }
-
-    mutating func value(_ value: borrowing WorkspaceTarget) throws {
-        switch value {
-        case let .rawID(text):
-            begin(123)
-            var first = true
-            self.key("kind", &first)
-            try self.value("raw-id")
-            self.key("value", &first)
-            try self.value(text)
-            end(125)
-        case let .displayName(text):
-            begin(123)
-            var first = true
-            self.key("kind", &first)
-            try self.value("display-name")
-            self.key("value", &first)
-            try self.value(text)
-            end(125)
         }
     }
 }
