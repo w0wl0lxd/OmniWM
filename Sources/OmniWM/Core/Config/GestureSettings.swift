@@ -16,12 +16,18 @@ final class GestureSettings {
 
     nonisolated static let windowGestureSensitivityRange = 0.1 ... 5.0
     nonisolated static let mouseWheelSensitivityRange = 0.1 ... 10.0
+    nonisolated static let workspaceSwipeSensitivityRange = 0.5 ... 5.0
 
     private nonisolated static let scrollSensitivityRange = 0.1 ... 100.0
 
     private nonisolated static func normalizedWindowSensitivity(_ value: Double, defaultValue: Double) -> Double {
         guard value.isFinite else { return defaultValue }
         return min(max(value, windowGestureSensitivityRange.lowerBound), windowGestureSensitivityRange.upperBound)
+    }
+
+    private nonisolated static func normalizedWorkspaceSwipeSensitivity(_ value: Double) -> Double {
+        guard value.isFinite else { return SettingsExport.Gestures.defaultWorkspaceSwipeSensitivity }
+        return value.clamped(to: workspaceSwipeSensitivityRange)
     }
 
     private nonisolated static func normalizedScrollSensitivity(_ value: Double) -> Double {
@@ -97,6 +103,17 @@ final class GestureSettings {
 
     var workspaceSwipeEdgeBehavior = GestureSettings.defaults.workspaceSwipeEdgeBehavior ?? .cycle {
         didSet { notifyChange() }
+    }
+
+    var workspaceSwipeSensitivity = SettingsExport.Gestures.defaultWorkspaceSwipeSensitivity {
+        didSet {
+            let normalized = GestureSettings.normalizedWorkspaceSwipeSensitivity(workspaceSwipeSensitivity)
+            guard normalized == workspaceSwipeSensitivity else {
+                workspaceSwipeSensitivity = normalized
+                return
+            }
+            notifyChange()
+        }
     }
 
     var overviewGestureEnabled = GestureSettings.defaults.overviewGestureEnabled ?? false {
@@ -182,6 +199,7 @@ final class GestureSettings {
             workspaceSwipeFingerCount: workspaceSwipeFingerCount,
             workspaceSwipeAxis: workspaceSwipeAxis,
             workspaceSwipeEdgeBehavior: workspaceSwipeEdgeBehavior,
+            workspaceSwipeSensitivity: workspaceSwipeSensitivity,
             overviewGestureEnabled: overviewGestureEnabled,
             overviewGestureFingerCount: overviewGestureFingerCount,
             windowMoveEnabled: windowMoveEnabled,
@@ -214,6 +232,8 @@ final class GestureSettings {
         workspaceSwipeFingerCount = gestures.workspaceSwipeFingerCount
         workspaceSwipeAxis = gestures.workspaceSwipeAxis
         workspaceSwipeEdgeBehavior = gestures.workspaceSwipeEdgeBehavior ?? .cycle
+        workspaceSwipeSensitivity = gestures.workspaceSwipeSensitivity ?? SettingsExport.Gestures
+            .defaultWorkspaceSwipeSensitivity
         overviewGestureEnabled = gestures.overviewGestureEnabled ?? false
         overviewGestureFingerCount = gestures.overviewGestureFingerCount ?? .four
         windowMoveEnabled = gestures.windowMoveEnabled ?? false

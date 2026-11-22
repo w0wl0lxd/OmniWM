@@ -128480,6 +128480,12 @@
         }
       }
     },
+    "Swipe sensitivity" : {
+
+    },
+    "Increase to switch workspaces with less finger travel." : {
+
+    },
     "Swipe axis" : {
       "localizations" : {
         "ja" : {

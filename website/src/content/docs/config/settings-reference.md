@@ -341,6 +341,7 @@ The seven optional `overviewGesture…` and `window…` keys below configure Ove
 | `workspaceSwipeFingerCount` | integer | `3` | Workspace-swipe finger count: `2`, `3`, or `4`. |
 | `workspaceSwipeAxis` | string | `"vertical"` | Workspace-swipe axis: `horizontal` or `vertical`. Workspace switch slides from shortcuts go the same way as workspace swipes. |
 | `workspaceSwipeEdgeBehavior` *(optional)* | string | `"cycle"` | What a workspace swipe does past the first or last workspace: `cycle` wraps around, `none` ignores the swipe, and `onePast` moves from the last occupied workspace to an empty one, creating it if needed, while ignoring swipes past an empty last workspace or before the first. Applies to trackpad swipes only; next/previous workspace hotkeys always wrap. |
+| `workspaceSwipeSensitivity` *(optional)* | float | `1.0` | Workspace-swipe travel multiplier, clamped to `0.5…5.0`. Non-finite values use `1.0`. Higher values switch workspaces with less finger travel. |
 | `overviewGestureEnabled` *(optional)* | boolean | `false` | Enable the trackpad gesture that opens Overview with an upward swipe and closes it with a downward swipe. |
 | `overviewGestureFingerCount` *(optional)* | integer | `4` | Overview gesture finger count: `3` or `4`. |
 | `windowMoveEnabled` *(optional)* | boolean | `false` | Move the tiled window under the pointer without clicking. Other windows make room as you drag. Lift to settle. |

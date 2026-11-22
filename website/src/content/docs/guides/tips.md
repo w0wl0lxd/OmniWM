@@ -46,6 +46,8 @@ The **Trackpad scroll style** picker under **Settings → Mouse & Trackpad → T
 
 All five gesture assignments appear together in **Trackpad Gestures**. You can select fingers while a gesture is off. If an assignment conflicts, **Set Up…** shows exactly which gestures would turn off and lets you choose before applying. Turning off **Scroll columns** also turns off modifier + mouse-wheel column scrolling.
 
+If a workspace swipe needs too much finger travel, expand **Switch workspaces** and increase **Swipe sensitivity**. The default is **1.0x**. At **2.0x**, half the finger travel switches.
+
 ## Move and resize with the trackpad (opt-in)
 
 Enable **Move windows** or **Resize windows** in **Settings → Mouse & Trackpad → Trackpad Gestures** to drag the tiled window under the pointer without clicking. Both layouts rearrange as you move. Lift to settle. Resize adjusts the nearest movable edges. The pointer stays in place.

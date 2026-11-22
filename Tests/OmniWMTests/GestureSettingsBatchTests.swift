@@ -96,6 +96,7 @@ final class GestureSettingsBatchTests: XCTestCase {
             equivalent.windowMoveFingerCount = nil
             equivalent.windowResizeEnabled = nil
             equivalent.windowResizeFingerCount = nil
+            equivalent.workspaceSwipeSensitivity = .nan
             equivalent.windowMoveSensitivity = .nan
             equivalent.windowGestureSensitivity = .infinity
             equivalent.scrollSensitivity = .nan

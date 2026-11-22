@@ -184,6 +184,7 @@ struct SettingsExport: Equatable {
     struct Gestures: Codable, Equatable {
         static let defaultMoveSensitivity = 2.0
         static let defaultResizeSensitivity = 1.0
+        static let defaultWorkspaceSwipeSensitivity = 1.0
 
         var scrollEnabled: Bool
         var scrollSensitivity: Double
@@ -195,6 +196,7 @@ struct SettingsExport: Equatable {
         var workspaceSwipeFingerCount: GestureFingerCount
         var workspaceSwipeAxis: WorkspaceSwipeAxis
         var workspaceSwipeEdgeBehavior: WorkspaceSwipeEdgeBehavior? = .cycle
+        var workspaceSwipeSensitivity: Double? = defaultWorkspaceSwipeSensitivity
         var overviewGestureEnabled: Bool? = false
         var overviewGestureFingerCount: ThreeOrFourFingerCount? = .four
         var windowMoveEnabled: Bool? = false
