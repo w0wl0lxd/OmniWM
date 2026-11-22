@@ -28,6 +28,7 @@ struct ShellCommandOrigin {
 
 enum ShellRequest: Equatable, Sendable {
     static let statusMenuCommand = "shell menu"
+    static let hiddenBarPanelCommand = "hidden-bar panel"
 
     case command(IPCCommandRequest)
     case window(IPCWindowRequest)
