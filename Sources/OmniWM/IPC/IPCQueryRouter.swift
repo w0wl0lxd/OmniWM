@@ -11,6 +11,8 @@ final class IPCQueryRouter {
     private let appVersion: String?
     private let sessionToken: String
     var windowOrderedInProvider: (UInt32) -> Bool? = { SkyLight.shared.isWindowOrderedIn($0) }
+    var visibleWindowsProvider: () -> [WindowServerInfo] = { SkyLight.shared.queryAllVisibleWindows() }
+    var axWindowRefProvider: (UInt32, pid_t) -> AXWindowRef? = { AXWindowService.axWindowRef(for: $0, pid: $1) }
 
     init(
         controller: WMController,
@@ -173,6 +175,14 @@ final class IPCQueryRouter {
             sessionToken: sessionToken,
             request: request,
             windowOrderedInProvider: windowOrderedInProvider
+        ).result()
+    }
+
+    func unmanagedWindowsResult() -> IPCUnmanagedWindowsQueryResult {
+        IPCUnmanagedWindowProjection(
+            controller: controller,
+            visibleWindows: visibleWindowsProvider,
+            axWindowRef: axWindowRefProvider
         ).result()
     }
 
