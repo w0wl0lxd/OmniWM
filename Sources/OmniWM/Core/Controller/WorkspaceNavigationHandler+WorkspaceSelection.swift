@@ -77,7 +77,7 @@ extension WorkspaceNavigationHandler {
 
     func switchWorkspaceRelative(
         isNext: Bool,
-        wrapAround: Bool = true,
+        wrapAround explicitWrapAround: Bool? = nil,
         monitorId explicitMonitorId: Monitor.ID? = nil
     ) {
         guard let controller else { return }
@@ -93,6 +93,7 @@ extension WorkspaceNavigationHandler {
                 : controller.workspaceManager.activeWorkspaceOrFirst(on: currentMonitorId))
         guard let currentWorkspace = resolvedWorkspace else { return }
         let skipEmpty = skipsEmptyWorkspaces(on: currentMonitorId)
+        let wrapAround = explicitWrapAround ?? controller.settings.workspaces.wrapAround
 
         let targetWorkspace: WorkspaceDescriptor? = if isNext {
             controller.workspaceManager.nextWorkspaceInOrder(
