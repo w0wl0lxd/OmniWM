@@ -78,6 +78,7 @@ extension MouseEventHandler {
         let timestamp: TimeInterval
         let touches: [GestureTouchSample]
         let contactSession: MultitouchContactSession?
+        var surfaceAspectRatio: CGFloat = 1
 
         init(
             location: CGPoint,

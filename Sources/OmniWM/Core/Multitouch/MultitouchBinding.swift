@@ -19,6 +19,7 @@ final class MultitouchBinding {
         let ref: DeviceRef
         let registryId: UInt64
         let senderId: UInt64?
+        var surfaceAspectRatio: CGFloat = 1
     }
 
     enum EnumerationOutcome: Equatable, Sendable {
@@ -152,9 +153,27 @@ final class MultitouchBinding {
             guard registryIds.insert(registryId).inserted else {
                 return Enumeration(list: array, devices: [], outcome: .duplicateRegistryId)
             }
-            devices.append(Device(ref: ref, registryId: registryId, senderId: Self.senderId(for: service)))
+            devices.append(Device(
+                ref: ref,
+                registryId: registryId,
+                senderId: Self.senderId(for: service),
+                surfaceAspectRatio: Self.surfaceAspectRatio(for: service)
+            ))
         }
         return Enumeration(list: array, devices: devices, outcome: .success(devices.count))
+    }
+
+    private static func surfaceAspectRatio(for service: io_service_t) -> CGFloat {
+        guard let width = surfaceLength("Sensor Surface Width", of: service),
+              let height = surfaceLength("Sensor Surface Height", of: service)
+        else { return 1 }
+        return height / width
+    }
+
+    private static func surfaceLength(_ key: String, of service: io_service_t) -> CGFloat? {
+        let property = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)
+        guard let length = property?.takeRetainedValue() as? Int, length > 0 else { return nil }
+        return CGFloat(length)
     }
 
     private static func senderId(for service: io_service_t) -> UInt64? {

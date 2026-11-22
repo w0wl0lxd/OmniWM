@@ -18,7 +18,7 @@ extension MouseEventHandler {
             config.workspaceSwipeAxis = axis
         }
         config.overviewAction = controller.settings.overview.enabled ? lockedContext.overviewAction : nil
-        let translation = CGVector(dx: metrics.cumulativeX, dy: metrics.cumulativeY)
+        let translation = metrics.translation(surfaceAspectRatio: state.gestureSurfaceAspectRatio)
         guard let mode = TrackpadGestureIntent.resolveMode(
             config,
             fingerCount: lockedContext.fingerCount,
@@ -177,7 +177,9 @@ extension MouseEventHandler {
             return
         }
         let translation = CGPoint(x: metrics.cumulativeX, y: metrics.cumulativeY)
-        guard TrackpadGestureIntent.overviewTriggered(action: action, translation: translation) else { return }
+        guard TrackpadGestureIntent.overviewTriggered(
+            action: action, translation: translation, surfaceAspectRatio: state.gestureSurfaceAspectRatio
+        ) else { return }
         retainConsumedTrackpadSession()
         state.suppressGestureStartUntilAllTouchesLift = true
         tapInputs.consumeTrackpadScrollUntilAllTouchesLift = true

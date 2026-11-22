@@ -189,6 +189,7 @@ struct MouseInputState {
     var latestFocusFollowsMouseSample: FocusFollowsMouseSample?
     let focusFollowsMouseDebounce: TimeInterval = 0.1
 
+    var gestureSurfaceAspectRatio: CGFloat = 1
     var gestureStartX: CGFloat = 0.0
     var gestureStartY: CGFloat = 0.0
     var gestureLastAverageX: CGFloat = 0.0

@@ -74,6 +74,10 @@ final class MultitouchDeviceRegistration {
         return senderId
     }
 
+    func surfaceAspectRatio(at slot: Int) -> CGFloat {
+        registrations.indices.contains(slot) ? registrations[slot].device.surfaceAspectRatio : 1
+    }
+
     func recordTraceSnapshot(generation: UInt) {
         guard TrackpadScrollTrace.shared.isActive else { return }
         for (slot, registration) in registrations.enumerated() {

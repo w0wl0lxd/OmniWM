@@ -391,7 +391,8 @@ extension MultitouchGestureSource {
             contactSession: contactSession
         )
         previousActiveCount = result.activeCount
-        if let snapshot = result.snapshot {
+        if var snapshot = result.snapshot {
+            snapshot.surfaceAspectRatio = contactSession.map { devices.surfaceAspectRatio(at: $0.slot) } ?? 1
             onSnapshot?(snapshot)
         }
     }

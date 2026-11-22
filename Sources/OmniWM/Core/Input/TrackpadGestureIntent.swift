@@ -48,9 +48,14 @@ enum TrackpadGestureIntent {
     private static let overviewSwipeTriggerUnits: CGFloat = 24.0
     static let overviewTravelUnits = 300.0
 
-    static func overviewTriggered(action: OverviewGestureAction, translation: CGPoint) -> Bool {
+    static func overviewTriggered(
+        action: OverviewGestureAction,
+        translation: CGPoint,
+        surfaceAspectRatio: CGFloat = 1
+    ) -> Bool {
         let displacement = translation.y * action.direction
-        return displacement >= overviewSwipeTriggerUnits && displacement > abs(translation.x)
+        return displacement >= overviewSwipeTriggerUnits
+            && displacement * surfaceAspectRatio > abs(translation.x)
     }
 
     static func overviewProgress(units: Double) -> Double {

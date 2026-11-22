@@ -12,6 +12,10 @@ extension MouseEventHandler {
         var rawDeltaY: CGFloat
         var previousTimestamp: TimeInterval
 
+        func translation(surfaceAspectRatio: CGFloat) -> CGVector {
+            CGVector(dx: cumulativeX, dy: cumulativeY * surfaceAspectRatio)
+        }
+
         func traceRecognition(_ mode: TrackpadGestureMode, timestamp: TimeInterval) {
             TrackpadScrollTrace.record(.recognition(
                 mode: mode, x: Double(cumulativeX), y: Double(cumulativeY),
@@ -24,6 +28,7 @@ extension MouseEventHandler {
         let location = snapshot.location
         let phase = NSEvent.Phase(rawValue: snapshot.phaseRawValue)
         let activeTouchCount = Self.activeTouchCount(in: snapshot.touches)
+        state.gestureSurfaceAspectRatio = snapshot.surfaceAspectRatio
 
         if phase == .ended || phase == .cancelled {
             retainConsumedTrackpadSession()
