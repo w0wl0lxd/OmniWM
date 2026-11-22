@@ -21,7 +21,8 @@ extension IPCSizeChange {
 extension IPCCommandArgumentValue {
     public init?(token: String, kind: IPCCommandArgumentKind) {
         switch kind {
-        case .appID:
+        case .appID,
+             .bundleID:
             guard !token.isEmpty else { return nil }
             self = .appID(token)
         case .direction:
@@ -32,8 +33,10 @@ extension IPCCommandArgumentValue {
              .windowIndex:
             guard let value = Int(token), value > 0 else { return nil }
             self = .integer(value)
-        case .scratchpadIndex:
-            guard let value = Int(token), IPCScratchpadSlots.range.contains(value) else { return nil }
+        case .scratchpadIndex,
+             .revealSeconds:
+            let range = kind == .revealSeconds ? IPCHiddenBarReveal.secondsRange : IPCScratchpadSlots.range
+            guard let value = Int(token), range.contains(value) else { return nil }
             self = .integer(value)
         case .layout:
             guard let layout = IPCWorkspaceLayout(rawValue: token) else { return nil }

@@ -42,8 +42,7 @@ final class IPCCommandRouter {
             return raiseAllFloatingWindows()
         case .toggleFloatingFocus:
             return controller.commandHandler.performCommand(.toggleFloatingFocus)
-        case .rescueOffscreenWindows:
-            return rescueOffscreenWindows()
+        case .rescueOffscreenWindows: return rescueOffscreenWindows()
         case let .workspaceLayout(command):
             return handle(command)
         case let .fullscreen(command):
@@ -60,6 +59,7 @@ final class IPCCommandRouter {
             return controller.commandHandler.performCommand(HotkeyCommand(ipc: command))
         case .openMenuAnywhere:
             return controller.commandHandler.performCommand(.openMenuAnywhere)
+        case let .hiddenBarReveal(bundleID, seconds): return revealHiddenBarItem(bundleID, seconds: seconds)
         case let .shellAppOpen(appID):
             return controller.commandHandler.performCommand(.shellAppOpen(appID))
         case let .shellAppNewWindow(appID):
@@ -338,6 +338,13 @@ extension IPCCommandRouter {
         }
         controller.openCommandPalette(mode: CommandPaletteMode(ipc: mode))
         return .executed
+    }
+
+    private func revealHiddenBarItem(_ bundleID: String, seconds: Int?) -> ExternalCommandResult {
+        if let guardResult = IPCCommandValidation.controllerState(controller) {
+            return guardResult
+        }
+        return controller.hiddenBarController.reveal(bundleID, seconds: seconds)
     }
 
     private func advanceWindowSwitcher(

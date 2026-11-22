@@ -33,14 +33,16 @@ final class IPCCommandWireShapeTests: XCTestCase {
 
     private func argument(_ kind: IPCCommandArgumentKind) -> IPCCommandArgumentValue {
         switch kind {
-        case .appID:
+        case .appID,
+             .bundleID:
             .appID("example")
         case .direction:
             .direction(.left)
         case .workspaceNumber,
              .columnIndex,
              .windowIndex,
-             .scratchpadIndex:
+             .scratchpadIndex,
+             .revealSeconds:
             .integer(2)
         case .layout:
             .layout(.niri)
@@ -159,6 +161,7 @@ final class IPCCommandWireShapeTests: XCTestCase {
         #"{"arguments":{"scratchpadIndex":2},"name":"scratchpad-assign"}"#,
         #"{"arguments":{"scratchpadIndex":2},"name":"scratchpad-toggle"}"#,
         #"{"name":"open-menu-anywhere"}"#,
+        #"{"arguments":{"bundleId":"example"},"name":"hidden-bar-reveal"}"#,
         #"{"arguments":{"appId":"example"},"name":"app-open"}"#,
         #"{"arguments":{"appId":"example"},"name":"app-new-window"}"#
     ]
