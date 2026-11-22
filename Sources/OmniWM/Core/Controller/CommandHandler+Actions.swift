@@ -54,6 +54,9 @@ extension CommandHandler {
         switch action {
         case let .moveToMonitor(direction):
             controller.workspaceNavigationHandler.moveWindowToMonitor(direction: direction)
+        case .moveToNextMonitor,
+             .moveToPreviousMonitor:
+            break
         case let .moveTo(index):
             controller.workspaceNavigationHandler.moveFocusedWindow(toWorkspaceIndex: index)
         case .moveUp:
@@ -91,6 +94,8 @@ extension CommandHandler {
     private func detachesWindow(_ action: WorkspaceAction) -> Bool {
         switch action {
         case .moveToMonitor,
+             .moveToNextMonitor,
+             .moveToPreviousMonitor,
              .moveTo,
              .moveUp,
              .moveDown,
