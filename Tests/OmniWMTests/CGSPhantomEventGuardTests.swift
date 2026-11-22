@@ -415,6 +415,86 @@ final class CGSPhantomEventGuardTests: XCTestCase {
         XCTAssertEqual(controller.workspaceManager.invariantViolationCountsDump(), "clean")
     }
 
+    func testAuthoritativeCloseWithoutTabSiblingRetiresImmediately() throws {
+        for startsWithTransientDestroy in [false, true] {
+            let fixture = try Self.heldCloseFixture()
+            let handler = fixture.controller.axEventHandler
+            defer { fixture.controller.serviceLifecycleManager.stop() }
+            handler.processWindowFramesProvider = { _ in
+                [
+                    fixture.closing.windowId: fixture.frame,
+                    fixture.peer.windowId: fixture.frame,
+                    949_409: CGRect(x: 0, y: 0, width: 1728, height: 33)
+                ]
+            }
+
+            if startsWithTransientDestroy {
+                Self.destroy(fixture, evidence: .transientLifecycle)
+                XCTAssertTrue(handler.hasPendingManagedReplacementDestroy(fixture.closing))
+            }
+            Self.destroy(fixture, evidence: .windowClosed)
+
+            XCTAssertFalse(handler.hasPendingManagedReplacementDestroy(fixture.closing))
+            XCTAssertNil(fixture.controller.workspaceManager.entry(for: fixture.closing))
+            XCTAssertNil(fixture.engine.findNode(for: fixture.closing, in: fixture.workspaceId))
+            XCTAssertNotNil(fixture.controller.workspaceManager.entry(for: fixture.peer))
+            XCTAssertEqual(fixture.controller.workspaceManager.invariantViolationCountsDump(), "clean")
+        }
+    }
+
+    func testCloseKeepsReplacementHoldWhenATabSiblingIsPossible() throws {
+        let sibling = CGRect(x: 40, y: 60, width: 720, height: 520)
+        let cases: [(evidence: AXEventHandler.WindowDestroyEvidence, frames: [Int: CGRect]?)] = [
+            (.windowClosed, [949_402: sibling, 949_409: sibling]),
+            (.windowClosed, nil),
+            (.transientLifecycle, [949_402: sibling])
+        ]
+        for (evidence, frames) in cases {
+            let fixture = try Self.heldCloseFixture()
+            let handler = fixture.controller.axEventHandler
+            defer { fixture.controller.serviceLifecycleManager.stop() }
+            handler.processWindowFramesProvider = { _ in frames }
+
+            Self.destroy(fixture, evidence: evidence)
+
+            XCTAssertTrue(handler.hasPendingManagedReplacementDestroy(fixture.closing))
+            XCTAssertNotNil(fixture.controller.workspaceManager.entry(for: fixture.closing))
+            _ = handler.takeManagedReplacementBurst(for: fixture.key)
+        }
+    }
+
+    func testCloseAfterPendingReplacementCreateKeepsReplacementHold() throws {
+        let fixture = try Self.heldCloseFixture()
+        let handler = fixture.controller.axEventHandler
+        defer { fixture.controller.serviceLifecycleManager.stop() }
+        handler.processWindowFramesProvider = { _ in [fixture.closing.windowId: fixture.frame] }
+        let created = WindowToken(pid: fixture.closing.pid, windowId: 949_409)
+        handler.retainPreparedWindowSubscription(UInt32(created.windowId))
+        handler.enqueueManagedReplacementCreate(.init(
+            windowId: UInt32(created.windowId),
+            token: created,
+            axRef: AXWindowRef(
+                element: AXUIElementCreateApplication(created.pid), windowId: created.windowId
+            ),
+            ruleEffects: .none,
+            admissionHints: .none,
+            appFullscreen: false,
+            replacementMetadata: Self.managedReplacementMetadata(
+                workspaceId: fixture.workspaceId, pid: created.pid,
+                frame: fixture.frame.offsetBy(dx: 600, dy: 0)
+            ),
+            structuralReplacementMatch: nil
+        ))
+
+        Self.destroy(fixture, evidence: .windowClosed)
+
+        XCTAssertTrue(handler.hasPendingManagedReplacementDestroy(fixture.closing))
+        XCTAssertNotNil(fixture.controller.workspaceManager.entry(for: fixture.closing))
+        let burst = try XCTUnwrap(handler.takeManagedReplacementBurst(for: fixture.key))
+        XCTAssertEqual(burst.creates.map(\.candidate.token), [created])
+        handler.releasePreparedWindowSubscription(UInt32(created.windowId))
+    }
+
     func testManagedReplacementAwaitPreservesLateMatchedCreate() async throws {
         let controller = Self.controller()
         let workspaceId = try XCTUnwrap(controller.workspaceManager.workspaceId(for: "1", createIfMissing: true))
@@ -663,6 +743,51 @@ final class CGSPhantomEventGuardTests: XCTestCase {
         XCTAssertNil(controller.layoutRefreshController.layoutState.activeRefresh)
         XCTAssertNil(controller.layoutRefreshController.layoutState.pendingRefresh)
         XCTAssertEqual(controller.workspaceManager.invariantViolationCountsDump(), "clean")
+    }
+
+    private struct HeldCloseFixture {
+        let controller: WMController
+        let engine: NiriLayoutEngine
+        let workspaceId: WorkspaceDescriptor.ID
+        let closing: WindowToken
+        let peer: WindowToken
+        let frame: CGRect
+
+        var key: AXEventHandler.ManagedReplacementKey {
+            .init(pid: closing.pid, workspaceId: workspaceId)
+        }
+    }
+
+    private static func heldCloseFixture() throws -> HeldCloseFixture {
+        let controller = controller()
+        let workspaceId = try XCTUnwrap(controller.workspaceManager.workspaceId(for: "1", createIfMissing: true))
+        controller.niriLayoutHandler.enableNiriLayout()
+        let engine = try XCTUnwrap(controller.niriEngine)
+        let pid: pid_t = 949_401
+        let frame = CGRect(x: 160, y: 120, width: 720, height: 520)
+        let tokens = [949_402, 949_403].map { windowId in
+            let token = controller.workspaceManager.addWindow(
+                AXWindowRef(element: AXUIElementCreateApplication(pid), windowId: windowId),
+                pid: pid, windowId: windowId, to: workspaceId,
+                managedReplacementMetadata: managedReplacementMetadata(
+                    workspaceId: workspaceId, pid: pid, frame: frame
+                )
+            )
+            _ = engine.addWindow(token: token, to: workspaceId, afterSelection: nil)
+            return token
+        }
+        controller.layoutRefreshController.resetState()
+        return HeldCloseFixture(
+            controller: controller, engine: engine, workspaceId: workspaceId,
+            closing: tokens[0], peer: tokens[1], frame: frame
+        )
+    }
+
+    private static func destroy(_ fixture: HeldCloseFixture, evidence: AXEventHandler.WindowDestroyEvidence) {
+        fixture.controller.axEventHandler.handleWindowDestroyed(
+            windowId: UInt32(fixture.closing.windowId), pidHint: fixture.closing.pid,
+            evidence: evidence, windowInfo: nil
+        )
     }
 
     private static func managedReplacementMetadata(

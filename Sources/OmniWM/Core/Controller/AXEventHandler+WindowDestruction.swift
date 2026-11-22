@@ -242,6 +242,21 @@ extension AXEventHandler {
         )
     }
 
+    static func windowFrames(ofProcess pid: pid_t) -> [Int: CGRect]? {
+        guard let windows = CGWindowListCopyWindowInfo(
+            [.optionAll, .excludeDesktopElements], kCGNullWindowID
+        ) as? [[String: Any]] else { return nil }
+        var frames: [Int: CGRect] = [:]
+        for window in windows where window[kCGWindowOwnerPID as String] as? pid_t == pid {
+            guard let windowId = window[kCGWindowNumber as String] as? Int,
+                  let bounds = window[kCGWindowBounds as String] as? [String: Any],
+                  let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary)
+            else { return nil }
+            frames[windowId] = frame
+        }
+        return frames.isEmpty ? nil : frames
+    }
+
     func shouldDelayManagedReplacementDestroy(_ candidate: PreparedDestroy) -> Bool {
         managedReplacementCorrelationPolicy(for: candidate.replacementMetadata) != nil
     }
