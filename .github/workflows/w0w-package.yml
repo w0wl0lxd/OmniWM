@@ -1,0 +1,225 @@
+name: w0w package
+# Fork-only. Packages a w0w-YYYYMMDD-N tag as an ad hoc signed arm64 app and
+# publishes it as a prerelease. It holds no secret and no signing key. Tags are
+# the real trigger: workflow_dispatch is listed only once this file is on the
+# default branch, which stays a pure upstream mirror.
+on:
+  push:
+    tags: ['w0w-*']
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: w0w-package-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ci-url: ${{ steps.gate.outputs.ci-url }}
+    steps:
+      - name: Require a w0w release tag on a green CI commit
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF_TYPE: ${{ github.ref_type }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          [[ "$REF_TYPE" == tag ]] || fail "Run this workflow from a w0w tag, not a branch."
+          [[ "$TAG" =~ ^w0w-[0-9]{8}-[0-9]+$ ]] || fail "The tag must match ^w0w-[0-9]{8}-[0-9]+\$."
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || fail "The tagged commit must be a full 40-character SHA."
+          [[ "$REPO" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || fail "Unexpected repository name."
+          [[ "$REPO" != OmniNull/OmniWM ]] || fail "This workflow is fork-only."
+
+          refs="$(gh api --paginate "repos/$REPO/git/matching-refs/heads/w0w/" --jq '.[] | [.ref, .object.sha] | @tsv')"
+          branch=""
+          while IFS=$'\t' read -r ref tip; do
+            [[ "$ref" =~ ^refs/heads/w0w/[^/]+-release$ ]] || continue
+            [[ "$tip" =~ ^[0-9a-f]{40}$ ]] || continue
+            if status="$(gh api "repos/$REPO/compare/$SHA...$tip" --jq .status 2>/dev/null)"; then
+              case "$status" in
+                ahead | identical) branch="$ref"; break ;;
+              esac
+            fi
+          done <<< "$refs"
+          [[ -n "$branch" ]] || fail "Commit $SHA is not on a w0w/*-release branch."
+          echo "Commit is on $branch."
+
+          runs="$(gh api --paginate --slurp "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&per_page=100")"
+          latest="$(jq -c --arg sha "$SHA" --arg repo "$REPO" '
+            [.[].workflow_runs[]
+             | select(.head_sha == $sha and .path == ".github/workflows/ci.yml" and .name == "OmniWM CI"
+                      and (.event == "push" or .event == "workflow_dispatch")
+                      and .repository.full_name == $repo and .head_repository.full_name == $repo)]
+            | max_by(.run_number) // empty' <<< "$runs")"
+          [[ -n "$latest" ]] || fail "No OmniWM CI push or workflow_dispatch run exists for $SHA on $REPO."
+          run_id="$(jq -r .id <<< "$latest")"
+          run_url="$(jq -r .html_url <<< "$latest")"
+          [[ "$run_id" =~ ^[1-9][0-9]*$ ]] || fail "Unexpected CI run id."
+          [[ "$run_url" =~ ^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/actions/runs/[0-9]+$ ]] || fail "Unexpected CI run URL."
+          jq -e '.status == "completed" and .conclusion == "success"' <<< "$latest" > /dev/null \
+            || fail "The latest OmniWM CI run for $SHA has not succeeded: $run_url"
+
+          jobs="$(gh api --paginate --slurp "repos/$REPO/actions/runs/$run_id/jobs?filter=latest&per_page=100")"
+          jq -e --arg sha "$SHA" '
+            [.[].jobs[]] as $jobs
+            | ($jobs | length) > 0
+            and all($jobs[]; .head_sha == $sha and .status == "completed"
+                    and (.conclusion == "success" or (.name == "Cache dependencies" and .conclusion == "skipped")))
+            and (["Changes", "Tooling", "Verify", "Tests"]
+                 | all(.[]; . as $name | any($jobs[]; .name == $name and .conclusion == "success")))
+            and ([$jobs[] | select(.name | startswith("Tests ("))] | length) > 0' <<< "$jobs" > /dev/null \
+            || fail "CI did not run and pass Changes, Tooling, Verify, Tests and the test groups for $SHA: $run_url"
+
+          echo "ci-url=$run_url" >> "$GITHUB_OUTPUT"
+          {
+            printf '## Gate passed\n\n'
+            printf -- '- Tag: `%s`\n- Commit: `%s`\n- Branch: `%s`\n- CI run: %s\n' "$TAG" "$SHA" "$branch" "$run_url"
+          } >> "$GITHUB_STEP_SUMMARY"
+  build:
+    name: Build and verify
+    needs: gate
+    runs-on: xcode-27
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      OMNIWM_BUNDLE_ID: dev.w0wl0lxd.OmniWM
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Require the pinned Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -d "$DEVELOPER_DIR" ]] || { echo "::error::$DEVELOPER_DIR is missing on this runner image."; exit 1; }
+          version="$(xcodebuild -version)"
+          printf '%s\n' "$version"
+          [[ "$version" == $'Xcode 27.1\nBuild version 27A9275' ]] || { echo "::error::Expected Xcode 27.1 (27A9275)."; exit 1; }
+      - uses: ./.github/actions/setup-swift
+      - uses: ./.github/actions/setup-lix
+        with:
+          make-target: setup
+      - name: Put flake tools on PATH
+        run: echo "$PWD/.cache/flake-tools/bin" >> "$GITHUB_PATH"
+      - name: Build and ad hoc sign the app
+        run: Scripts/package-app.sh release dev
+      - name: Verify the app bundle
+        env:
+          SHA: ${{ github.sha }}
+          EXPECTED_BUNDLE_ID: dev.w0wl0lxd.OmniWM
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          app=dist/OmniWM.app
+          plist="$app/Contents/Info.plist"
+          [[ "$(plutil -extract CFBundleIdentifier raw "$plist")" == "$EXPECTED_BUNDLE_ID" ]] || fail "Wrong bundle identifier."
+          for key in CFBundleName CFBundleDisplayName CFBundleExecutable; do
+            [[ "$(plutil -extract "$key" raw "$plist")" == OmniWM ]] || fail "$key must be OmniWM."
+          done
+          plutil -convert json -o - "$plist" | jq -e '[.. | strings | select(endswith(".dev"))] | length == 0' > /dev/null \
+            || fail "An Info.plist value ends in .dev."
+          hash="$(plutil -extract OMNIWMGitHash raw "$plist")"
+          [[ "${#hash}" -ge 7 && "$SHA" == "$hash"* ]] || fail "OMNIWMGitHash $hash does not match $SHA."
+          count=0
+          while IFS= read -r -d '' file; do
+            [[ "$(file -b "$file")" == *Mach-O* ]] || continue
+            count=$((count + 1))
+            archs="$(lipo -archs "$file")"
+            [[ "$archs" == arm64 ]] || fail "$file has architectures: $archs"
+          done < <(find "$app" -type f -print0)
+          (( count >= 3 )) || fail "Expected at least three Mach-O files, found $count."
+          codesign --verify --strict --deep --verbose=2 "$app"
+          details="$(codesign -dvv "$app" 2>&1)"
+          printf '%s\n' "$details"
+          grep -q '^Signature=adhoc$' <<< "$details" || fail "The app is not ad hoc signed."
+          ! grep -q '^Authority=' <<< "$details" || fail "The app carries a certificate authority."
+          expected="$(plutil -convert json -o - OmniWM.entitlements | jq -S .)"
+          for target in "$app/Contents/MacOS/OmniWM" "$app"; do
+            actual="$(codesign -d --entitlements :- "$target" 2> /dev/null | plutil -convert json -o - - | jq -S .)"
+            [[ "$actual" == "$expected" ]] || fail "Entitlements of $target differ from OmniWM.entitlements."
+          done
+          echo "Verified bundle $EXPECTED_BUNDLE_ID at $hash with $count arm64 Mach-O files."
+      - name: Create the zip and checksum
+        id: pack
+        env:
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/package"
+          mkdir -p "$out"
+          zip="OmniWM-$TAG.zip"
+          ditto -c -k --keepParent dist/OmniWM.app "$out/$zip"
+          (cd "$out" && shasum -a 256 "$zip" > "$zip.sha256" && shasum -a 256 -c "$zip.sha256")
+          check="$RUNNER_TEMP/unzip-check"
+          mkdir -p "$check"
+          ditto -x -k "$out/$zip" "$check"
+          codesign --verify --strict --deep --verbose=2 "$check/OmniWM.app"
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: w0w-package-${{ github.run_id }}
+          path: ${{ steps.pack.outputs.dir }}
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+  publish:
+    name: Publish prerelease
+    needs: [gate, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: w0w-package-${{ github.run_id }}
+          path: ${{ runner.temp }}/package
+      - name: Create the prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          CI_URL: ${{ needs.gate.outputs.ci-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$*"; exit 1; }
+          [[ "$TAG" =~ ^w0w-[0-9]{8}-[0-9]+$ ]] || fail "Unexpected tag."
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || fail "Unexpected commit."
+          [[ "$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)" == "$SHA" ]] || fail "Tag $TAG no longer points at $SHA."
+          dir="$RUNNER_TEMP/package"
+          zip="OmniWM-$TAG.zip"
+          [[ "$(find "$dir" -type f | sort)" == "$(printf '%s\n%s\n' "$dir/$zip" "$dir/$zip.sha256")" ]] || fail "Unexpected artifact contents."
+          (cd "$dir" && sha256sum -c "$zip.sha256")
+          digest="$(cut -d ' ' -f 1 "$dir/$zip.sha256")"
+          {
+            printf 'Ad hoc signed arm64 build of OmniWM, bundle identifier `dev.w0wl0lxd.OmniWM`.\n'
+            printf 'It is not notarized. Verify the SHA-256 before you run it.\n\n'
+            printf -- '- Source commit: `%s`\n' "$SHA"
+            printf -- '- Source tree (GPL-3.0 corresponding source): https://github.com/%s/tree/%s\n' "$GH_REPO" "$SHA"
+            printf -- '- SHA-256 of `%s`: `%s`\n' "$zip" "$digest"
+            printf -- '- Required CI run: %s\n' "$CI_URL"
+            printf -- '- Packaging run: %s\n' "$RUN_URL"
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" "$dir/$zip" "$dir/$zip.sha256" \
+            --verify-tag \
+            --prerelease \
+            --title "OmniWM $TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md"
