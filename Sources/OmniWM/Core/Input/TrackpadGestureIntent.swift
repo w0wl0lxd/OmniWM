@@ -160,6 +160,33 @@ enum TrackpadGestureIntent {
             || (config.workspaceSwipeEnabled && fingerCount == config.workspaceSwipeFingerCount)
     }
 
+    static func allowsRearm(
+        _ config: Config,
+        from fingerCount: Int,
+        overviewAction: OverviewGestureAction?,
+        to landedFingerCount: Int
+    ) -> Bool {
+        guard landedFingerCount > fingerCount,
+              allowsGestureStart(config, fingerCount: landedFingerCount)
+        else { return false }
+        switch overviewAction {
+        case nil: return true
+        case .open: return windowGestureMode(config, fingerCount: landedFingerCount) == nil
+        case .close,
+             .resume: return false
+        }
+    }
+
+    static func awaitsMoreFingers(
+        _ config: Config,
+        fingerCount: Int,
+        overviewAction: OverviewGestureAction?
+    ) -> Bool {
+        GestureFingerCount.allCases.contains {
+            allowsRearm(config, from: fingerCount, overviewAction: overviewAction, to: $0.rawValue)
+        }
+    }
+
     static func hasCandidateMode(
         _ config: Config,
         fingerCount: Int,
@@ -207,6 +234,7 @@ enum TrackpadGestureIntent {
     }
 
     static let recognitionThreshold: CGFloat = 16
+    static let fingerLandingSettleInterval: TimeInterval = 0.032
     static let undecidedDirectionTravelLimit = recognitionThreshold * 4
     static let undecidedDirectionAxisRatio: CGFloat = 2
     static let appScrollFingerCount = GestureFingerCount.two.rawValue

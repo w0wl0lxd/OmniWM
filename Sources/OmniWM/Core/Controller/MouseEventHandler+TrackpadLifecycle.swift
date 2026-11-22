@@ -76,7 +76,37 @@ extension MouseEventHandler {
             return
         }
         state.suppressGestureStartUntilAllTouchesLift = true
+        if lockedContext.fingerCount != TrackpadGestureIntent.appScrollFingerCount {
+            state.droppedGestureContext = lockedContext
+        }
         resetGestureState()
+    }
+
+    func holdGestureForMoreFingers(
+        metrics: GestureFrameMetrics,
+        lockedContext: MouseInputState.LockedGestureContext,
+        timestamp: TimeInterval
+    ) -> Bool {
+        guard timestamp - state.gestureArmedTimestamp < TrackpadGestureIntent.fingerLandingSettleInterval,
+              let config = trackpadGestureConfig,
+              TrackpadGestureIntent.awaitsMoreFingers(
+                  config, fingerCount: lockedContext.fingerCount, overviewAction: lockedContext.overviewAction
+              )
+        else { return false }
+        state.heldGestureFrame = (metrics, timestamp)
+        return true
+    }
+
+    func commitHeldGesture() {
+        guard tapInputs.gesturePhase == .armed,
+              let held = state.heldGestureFrame,
+              let lockedContext = state.lockedGestureContext,
+              let monitor = controller?.workspaceManager.monitor(byId: lockedContext.monitorId),
+              commitGestureMode(metrics: held.metrics, lockedContext: lockedContext, timestamp: held.timestamp)
+        else { return }
+        dispatchCommittedGestureFrame(
+            metrics: held.metrics, lockedContext: lockedContext, monitor: monitor, timestamp: held.timestamp
+        )
     }
 
     func dispatchCommittedGestureFrame(
@@ -434,6 +464,8 @@ extension MouseEventHandler {
         state.gestureLastAverageX = 0.0
         state.gestureLastAverageY = 0.0
         state.gestureLastTimestamp = 0
+        state.gestureArmedTimestamp = 0
+        state.heldGestureFrame = nil
         state.lockedGestureContext = nil
         state.activeGestureMode = nil
         state.gestureFingerCountMismatchSince = nil

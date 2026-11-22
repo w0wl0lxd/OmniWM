@@ -32,6 +32,7 @@ extension MouseEventHandler {
                 resetGestureState()
             }
             guard gestureFramePreconditionsSatisfied(at: location) else { return }
+            if phase == .ended { commitHeldGesture() }
             if tapInputs.gesturePhase == .committed {
                 finishCommittedGestureOnRelease(timestamp: snapshot.timestamp, allowFlick: phase == .ended)
             }
@@ -81,6 +82,8 @@ extension MouseEventHandler {
         requiredFingers: Int,
         snapshot: GestureEventSnapshot
     ) {
+        if activeTouchCount < requiredFingers { commitHeldGesture() }
+        let wasOverviewCandidate = state.lockedGestureContext?.overviewAction != nil
         if tapInputs.gesturePhase == .committed {
             let since = state.gestureFingerCountMismatchSince ?? snapshot.timestamp
             state.gestureFingerCountMismatchSince = since
@@ -96,10 +99,14 @@ extension MouseEventHandler {
                 finalizeCommittedGestureAfterTouchRelease(timestamp: snapshot.timestamp)
                 return
             }
-        } else if tapInputs.gesturePhase == .armed, activeTouchCount > requiredFingers,
-                  state.lockedGestureContext?.overviewAction == nil,
+        } else if tapInputs.gesturePhase == .armed,
                   let config = trackpadGestureConfig,
-                  TrackpadGestureIntent.windowGestureMode(config, fingerCount: activeTouchCount) != nil,
+                  TrackpadGestureIntent.allowsRearm(
+                      config,
+                      from: requiredFingers,
+                      overviewAction: state.lockedGestureContext?.overviewAction,
+                      to: activeTouchCount
+                  ),
                   let average = Self.averageGestureTouchPosition(
                       requiredFingers: activeTouchCount,
                       touches: snapshot.touches
@@ -114,9 +121,8 @@ extension MouseEventHandler {
                 timestamp: snapshot.timestamp
             )
             state.lockedGestureContext?.contactSession = snapshot.contactSession
-            return
+            guard tapInputs.gesturePhase == .idle else { return }
         }
-        let wasOverviewCandidate = state.lockedGestureContext?.overviewAction != nil
         if tapInputs.gesturePhase == .armed {
             TrackpadScrollTrace.record(.termination(
                 reason: "uncommitted-finger-count", required: requiredFingers, fingers: activeTouchCount, held: 0
@@ -191,6 +197,7 @@ extension MouseEventHandler {
         state.gestureLastAverageX = average.x
         state.gestureLastAverageY = average.y
         state.gestureLastTimestamp = timestamp
+        state.gestureArmedTimestamp = timestamp
         tapInputs.gesturePhase = .armed
         if context.overviewAction == .resume {
             _ = controller?.windowActionHandler.beginOverviewGesture()
@@ -284,10 +291,13 @@ extension MouseEventHandler {
         }
 
         if tapInputs.gesturePhase == .armed {
+            state.heldGestureFrame = nil
             let distanceSquared = metrics.cumulativeX * metrics.cumulativeX
                 + metrics.cumulativeY * metrics.cumulativeY
             let threshold = TrackpadGestureIntent.recognitionThreshold
-            guard distanceSquared >= threshold * threshold else {
+            guard distanceSquared >= threshold * threshold,
+                  !holdGestureForMoreFingers(metrics: metrics, lockedContext: lockedContext, timestamp: timestamp)
+            else {
                 rememberGestureSample(average, at: timestamp)
                 return
             }
