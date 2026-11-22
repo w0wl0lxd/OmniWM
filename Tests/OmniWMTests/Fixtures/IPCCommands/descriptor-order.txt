@@ -81,6 +81,8 @@ scratchpad-toggle
 open-menu-anywhere
 toggle-workspace-bar
 hidden-bar-panel
+hidden-bar-reveal
+hidden-bar-reveal
 toggle-quake-terminal
 toggle-workspace-layout
 set-workspace-layout
