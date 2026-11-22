@@ -12,6 +12,7 @@ extension WorkspaceManager {
             removeAnimationMotions(for: workspaceIds)
         }
         let previousFocus = focusSessionSnapshot
+        let changesOnlyTitle = changesOnlyManagedReplacementTitle(event)
         let viewportWorkspaceId = viewportWorkspaceId(for: event)
         let previousViewport = viewportWorkspaceId.flatMap { recordedViewportStates[$0] }
         let txn = commitWorldEvent(
@@ -29,7 +30,12 @@ extension WorkspaceManager {
             onHostedFamilyWorkspaceChanged?(token, destination)
         }
         if txn.plan.mutatesRuntimeState || eventRequiresRuntimeInvalidation(event) {
-            noteInvalidation(for: event)
+            noteInvalidation(
+                for: event,
+                changesOnlyTitle: changesOnlyTitle
+                    && txn.plan.persistedHydration == nil
+                    && txn.plan.restoreRefresh == nil
+            )
         }
         noteAuxiliaryFocusInvalidationIfNeeded(for: event, previousFocus: previousFocus, plan: txn.plan)
         if let viewportWorkspaceId {
