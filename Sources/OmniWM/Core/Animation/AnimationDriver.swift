@@ -12,6 +12,7 @@ final class AnimationDriver {
     private var nextGestureSessionID: UInt64 = 1
     private static let gestureLivenessInterval: TimeInterval = 1
     var gestureLivenessNow: @MainActor () -> TimeInterval = { CACurrentMediaTime() }
+    var mediaTime: @MainActor () -> TimeInterval = { CACurrentMediaTime() }
 
     func hasMotion(in workspaceId: WorkspaceDescriptor.ID) -> Bool {
         motions[workspaceId] != nil
@@ -323,8 +324,9 @@ extension AnimationDriver {
         previous: ViewportState?,
         next: ViewportState,
         transition: OffsetTransition,
-        at time: TimeInterval = CACurrentMediaTime()
+        at time: TimeInterval? = nil
     ) {
+        let time = time ?? mediaTime()
         recordViewportCommitTrace(
             workspaceId: workspaceId,
             previous: previous,

@@ -411,7 +411,8 @@ extension NiriLayoutHandler {
         let offsets = controller?.workspaceManager.animationDriver.renderOffsets(
             in: snapshot.workspaceId,
             semanticOffset: snapshot.viewportState.viewOffset,
-            at: sampledAnimationTime ?? CACurrentMediaTime()
+            at: sampledAnimationTime ?? controller?.workspaceManager.animationDriver.mediaTime()
+                ?? CACurrentMediaTime()
         )
 
         return engine.calculateCombinedLayoutUsingPools(
