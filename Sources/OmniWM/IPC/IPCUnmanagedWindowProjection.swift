@@ -6,9 +6,12 @@ import OmniWMIPC
 
 @MainActor
 struct IPCUnmanagedWindowProjection {
+    typealias ApplicationWindowsReader = (pid_t, TimeInterval, AXWindowInspectionContext, Set<Int>) throws
+        -> [AXEnumeratedWindow]
+
     let controller: WMController
     let visibleWindows: () -> [WindowServerInfo]
-    let axWindowRef: (UInt32, pid_t) -> AXWindowRef?
+    let readApplicationWindows: ApplicationWindowsReader
 
     func result() -> IPCUnmanagedWindowsQueryResult {
         IPCUnmanagedWindowsQueryResult(windows: [])
