@@ -77,8 +77,12 @@ extension WMController {
         return makeWindowDecisionDebugSnapshot(from: evaluation)
     }
 
+    func inspectorTargetWindowToken() -> WindowToken? {
+        focusedOrFrontmostWindowTokenForAutomation()
+    }
+
     func focusedWindowDecisionDebugSnapshot() -> WindowDecisionDebugSnapshot? {
-        let token = focusedOrFrontmostWindowTokenForAutomation()
+        let token = inspectorTargetWindowToken()
         guard let token else { return nil }
         return windowDecisionDebugSnapshot(for: token)
     }
