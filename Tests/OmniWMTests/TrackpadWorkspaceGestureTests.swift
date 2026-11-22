@@ -1392,6 +1392,42 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
         XCTAssertEqual(activeWorkspace(fixture), fixture.ws1)
     }
 
+    func testSwipeAxisFollowsThePhysicalDirectionOnTheSurface() async throws {
+        for (degrees, expectsColumnScroll) in [(40.0, true), (50.0, false)] {
+            let fixture = try makeFixture(scrollGestureEnabled: true)
+            let pad = CGSize(width: 156, height: 96)
+            let harness = try await installRecoveringMultitouchSource(
+                fixture,
+                surfaceAspectRatio: pad.height / pad.width
+            )
+            let generation = try XCTUnwrap(harness.source.diagnosticsSnapshot().activeGeneration)
+            let contact = MultitouchContactSession(generation: generation, slot: 0, session: 1, senderId: 0x637)
+            let radians = degrees * .pi / 180
+            for step in 0 ... 4 {
+                let travel = 5 * Double(step)
+                let touch = MultitouchGestureSource.RawTouch(
+                    x: Float(0.3 + travel * cos(radians) / pad.width),
+                    y: Float(0.3 + travel * sin(radians) / pad.height)
+                )
+                harness.source.handleRawFrame(
+                    MultitouchGestureSource.RawFrame(
+                        touches: [touch, touch, touch],
+                        timestamp: 100 + 0.01 * Double(step)
+                    ),
+                    generation: generation,
+                    location: CGPoint(x: 800, y: 450),
+                    contactSession: contact
+                )
+            }
+            XCTAssertEqual(
+                fixture.controller.mouseEventHandler.state.activeGestureMode,
+                expectsColumnScroll ? .columnScroll : .workspaceSwitch(axis: .vertical),
+                "\(degrees) degrees"
+            )
+            await cleanupRecoveringMultitouchSource(fixture, harness: harness)
+        }
+    }
+
     func testSharedCountHorizontalSwipeAppliesAndFinalizesNiriViewport() throws {
         var finalOffsets: [TrackpadScrollStyle: CGFloat] = [:]
         var finalIndexes: [TrackpadScrollStyle: Int] = [:]
@@ -2747,13 +2783,19 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
 
     private func installRecoveringMultitouchSource(
         _ fixture: Fixture,
-        includeSecondDevice: Bool = false
+        includeSecondDevice: Bool = false,
+        surfaceAspectRatio: CGFloat = 1
     ) async throws -> (
         source: MultitouchGestureSource,
         backend: FakeMultitouchBackend,
         sleeper: ManualMultitouchSleeper
     ) {
-        let device = FakeMultitouchBackend.device(pointer: 0xC1, registryId: 303, senderId: 0x637)
+        let device = FakeMultitouchBackend.device(
+            pointer: 0xC1,
+            registryId: 303,
+            senderId: 0x637,
+            surfaceAspectRatio: surfaceAspectRatio
+        )
         let backend = FakeMultitouchBackend()
         let registeredDevices = includeSecondDevice
             ? [device, FakeMultitouchBackend.device(pointer: 0xC2, registryId: 304, senderId: 0x638)]
