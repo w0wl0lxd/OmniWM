@@ -17,7 +17,8 @@ extension MouseEventHandler {
         wsId: WorkspaceDescriptor.ID,
         monitor: Monitor,
         orientation: Monitor.Orientation,
-        timestamp: TimeInterval = CACurrentMediaTime()
+        timestamp: TimeInterval = CACurrentMediaTime(),
+        previousTimestamp: TimeInterval? = nil
     ) {
         guard let controller else { return }
         let insetFrame = controller.niriWorkingFrame(for: monitor)
@@ -37,7 +38,9 @@ extension MouseEventHandler {
                     vstate.preservesGestureOffset = true
                 }
             }
-            driver.beginGesture(in: wsId, isTrackpad: true, timestamp: timestamp)
+            driver.beginGesture(
+                in: wsId, isTrackpad: true, timestamp: timestamp, previousTimestamp: previousTimestamp
+            )
         }
 
         guard let gestureSessionID = driver.gestureSessionID(in: wsId) else {

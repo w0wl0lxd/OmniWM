@@ -114,7 +114,8 @@ final class AnimationDriver {
     func beginGesture(
         in workspaceId: WorkspaceDescriptor.ID,
         isTrackpad: Bool,
-        timestamp: TimeInterval = CACurrentMediaTime()
+        timestamp: TimeInterval = CACurrentMediaTime(),
+        previousTimestamp: TimeInterval? = nil
     ) -> GestureSessionID? {
         let livenessTimestamp = gestureLivenessNow()
         guard timestamp.isFinite, livenessTimestamp.isFinite else {
@@ -128,6 +129,9 @@ final class AnimationDriver {
             sessionID: sessionID,
             livenessTimestamp: livenessTimestamp
         )
+        if let previousTimestamp, previousTimestamp < timestamp {
+            gesture.tracker.seed(nil, endingAt: previousTimestamp)
+        }
         motions[workspaceId] = .gesture(gesture)
         return sessionID
     }
@@ -161,8 +165,7 @@ final class AnimationDriver {
     ) -> GestureEndSample? {
         guard case let .gesture(gesture) = motions[workspaceId] else { return nil }
         if let isTrackpad, gesture.isTrackpad != isTrackpad { return nil }
-        gesture.update(
-            delta: 0,
+        gesture.release(
             timestamp: timestamp ?? CACurrentMediaTime(),
             viewportWidth: viewportWidth,
             livenessTimestamp: gestureLivenessNow()
@@ -235,6 +238,7 @@ extension AnimationDriver {
         let sessionID: GestureSessionID
         private(set) var normFactor: Double = 1.0
         private(set) var lastUpdateTime: TimeInterval
+        private var releaseTime: TimeInterval?
 
         init(
             isTrackpad: Bool,
@@ -252,7 +256,8 @@ extension AnimationDriver {
         }
 
         var velocity: Double {
-            let scaledVelocity = tracker.velocity() * normFactor
+            let trackedVelocity = releaseTime.map(tracker.velocity(atRelease:)) ?? tracker.velocity()
+            let scaledVelocity = trackedVelocity * normFactor
             guard scaledVelocity.isFinite else { return 0 }
             return abs(scaledVelocity) < Self.minimumFlingVelocity ? 0 : scaledVelocity
         }
@@ -274,6 +279,17 @@ extension AnimationDriver {
                   livenessTimestamp.isFinite
             else { return }
             guard tracker.push(delta: delta, timestamp: timestamp) else { return }
+            releaseTime = nil
+            noteUpdate(viewportWidth: viewportWidth, livenessTimestamp: livenessTimestamp)
+        }
+
+        func release(timestamp: TimeInterval, viewportWidth: Double, livenessTimestamp: TimeInterval) {
+            guard timestamp.isFinite, viewportWidth.isFinite, livenessTimestamp.isFinite else { return }
+            releaseTime = timestamp
+            noteUpdate(viewportWidth: viewportWidth, livenessTimestamp: livenessTimestamp)
+        }
+
+        private func noteUpdate(viewportWidth: Double, livenessTimestamp: TimeInterval) {
             lastUpdateTime = livenessTimestamp
             if isTrackpad {
                 let nextNormFactor = viewportWidth / AnimationDriver.gestureWorkingAreaMovement
