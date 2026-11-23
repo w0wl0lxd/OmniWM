@@ -4,41 +4,71 @@
 import AppKit
 
 extension WorkspaceSwipePresentation {
-    private var isLayoutMoving: Bool {
-        guard let refreshController else { return false }
-        return hasPresentation
-            || !refreshController.niriHandler.scrollAnimationByDisplay.isEmpty
-            || !refreshController.dwindleHandler.dwindleAnimationByDisplay.isEmpty
-            || refreshController.layoutState.closingAnimationsByDisplay.contains { !$0.value.isEmpty }
+    private var warmsPreviews: Bool {
+        guard let controller else { return false }
+        return controller.hasStartedServices && controller.motionPolicy.animationsEnabled
+            && (controller.settings.gestures.workspaceSwipeEnabled
+                || controller.settings.slideWorkspaceSwitchesUntracked)
+    }
+
+    private func isBusy(_ monitorId: Monitor.ID) -> Bool {
+        preparation != nil || flights[monitorId] != nil
+            || refreshController?.hasDisplayLinkWork(for: monitorId.displayId) == true
     }
 
     func warmPreviewsAfterMotion() {
-        guard warmTask == nil else { return }
+        guard warmsPreviews, let monitor = controller?.monitorForInteraction() else { return }
+        guard isBusy(monitor.id) else {
+            deferredWarms[monitor.id] = nil
+            warmPreviews(on: monitor.id)
+            return
+        }
+        deferredWarms[monitor.id] = deferredWarms[monitor.id] ?? 20
+        resumeDeferredWarms()
+    }
+
+    func resumeDeferredWarms() {
+        guard warmTask == nil, !deferredWarms.isEmpty else { return }
         warmTask = Task { [weak self, warmSleep] in
             repeat {
                 do {
-                    try await warmSleep(.milliseconds(750))
+                    try await warmSleep(.milliseconds(100))
+                    try Task.checkCancellation()
                 } catch {
                     return
                 }
-            } while self?.isLayoutMoving == true
-            guard let self, !Task.isCancelled else { return }
-            warmTask = nil
-            warmPreviews()
+            } while self?.warmSettledMonitors() == true
         }
     }
 
+    private func warmSettledMonitors() -> Bool {
+        let isOverviewOpen = controller?.isOverviewOpen() == true
+        for (monitorId, polls) in deferredWarms where !isOverviewOpen {
+            let keepsWaiting = polls > 1 && isBusy(monitorId)
+            deferredWarms[monitorId] = keepsWaiting ? polls - 1 : nil
+            if !keepsWaiting { warmPreviews(on: monitorId) }
+        }
+        if isOverviewOpen || deferredWarms.isEmpty { warmTask = nil }
+        return warmTask != nil
+    }
+
+    func cancelDeferredWarms() {
+        warmTask?.cancel()
+        warmTask = nil
+        deferredWarms.removeAll()
+    }
+
     func warmPreviews() {
-        guard preparation == nil,
-              let controller, controller.hasStartedServices,
-              controller.motionPolicy.animationsEnabled,
-              controller.settings.gestures.workspaceSwipeEnabled || controller.settings.slideWorkspaceSwitchesUntracked,
-              !controller.isOverviewOpen(),
-              let monitor = controller.monitorForInteraction(),
-              flights[monitor.id] == nil,
-              let preparation = makePreparation(monitorId: monitor.id, liveFrames: false)
+        guard let monitor = controller?.monitorForInteraction() else { return }
+        warmPreviews(on: monitor.id)
+    }
+
+    private func warmPreviews(on monitorId: Monitor.ID) {
+        guard warmsPreviews, preparation == nil, flights[monitorId] == nil,
+              let controller, !controller.isOverviewOpen(),
+              let preparation = makePreparation(monitorId: monitorId, liveFrames: false)
         else { return }
-        previewSurface(controller, for: monitor.id).warm(
+        previewSurface(controller, for: monitorId).warm(
             source: preparation.source.items,
             destination: (preparation.previous?.items ?? []) + (preparation.next?.items ?? []),
             monitor: preparation.monitor,

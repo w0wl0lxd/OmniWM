@@ -76,10 +76,15 @@ extension WorkspaceSwipePresentation {
             source: preparation.source.items, destination: flight.destination.items,
             monitor: preparation.monitor, workingFrame: preparation.frame
         )
-        return preview.begin(
+        if preview.begin(
+            source: preparation.source.items, destination: flight.destination.items,
+            monitor: preparation.monitor, workingFrame: preparation.frame
+        ) { return true }
+        preview.warm(
             source: preparation.source.items, destination: flight.destination.items,
             monitor: preparation.monitor, workingFrame: preparation.frame
         )
+        return false
     }
 
     private func launch(_ flight: Flight, after predecessor: Flight?, at now: TimeInterval) -> Bool {
