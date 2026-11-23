@@ -20,6 +20,26 @@ final class KittyCloseHoldTests: XCTestCase {
         }
     }
 
+    func testKittyInNativeFullscreenSurvivesATransientDestroyAndRetiresOnClose() throws {
+        let (controller, token, _) = try fixture(bundleId: KittyQuickAccessTerminal.bundleIdentifier)
+        let manager = controller.workspaceManager
+        defer { controller.serviceLifecycleManager.stop() }
+        XCTAssertTrue(manager.markNativeFullscreenSuspended(token))
+
+        destroy(token, evidence: .transientLifecycle, controller: controller)
+
+        XCTAssertFalse(controller.axEventHandler.hasPendingManagedReplacementDestroy(token))
+        XCTAssertNotNil(manager.entry(for: token))
+        XCTAssertEqual(manager.nativeFullscreenRecord(for: token)?.currentToken, token)
+        XCTAssertEqual(manager.layoutReason(for: token), .nativeFullscreen)
+
+        destroy(token, evidence: .windowClosed, controller: controller)
+
+        XCTAssertNil(manager.entry(for: token))
+        XCTAssertNil(manager.nativeFullscreenRecord(for: token))
+        XCTAssertEqual(manager.invariantViolationCountsDump(), "clean")
+    }
+
     func testOtherAppsKeepTheReplacementHold() throws {
         let (controller, token, workspaceId) = try fixture(bundleId: "com.omniwm.tests.close-hold")
         defer { controller.serviceLifecycleManager.stop() }
