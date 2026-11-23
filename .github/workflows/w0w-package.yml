@@ -41,33 +41,34 @@ jobs:
           [[ "$REPO" != OmniNull/OmniWM ]] || fail "This workflow is fork-only."
 
           refs="$(gh api --paginate "repos/$REPO/git/matching-refs/heads/w0w/" --jq '.[] | [.ref, .object.sha] | @tsv')"
-          branch=""
+          branches=()
           while IFS=$'\t' read -r ref tip; do
             [[ "$ref" =~ ^refs/heads/w0w/[^/]+-release$ ]] || continue
             [[ "$tip" =~ ^[0-9a-f]{40}$ ]] || continue
             if status="$(gh api "repos/$REPO/compare/$SHA...$tip" --jq .status 2>/dev/null)"; then
               case "$status" in
-                ahead | identical) branch="$ref"; break ;;
+                ahead | identical) branches+=("${ref#refs/heads/}") ;;
               esac
             fi
           done <<< "$refs"
-          [[ -n "$branch" ]] || fail "Commit $SHA is not on a w0w/*-release branch."
-          echo "Commit is on $branch."
+          (( ${#branches[@]} > 0 )) || fail "Commit $SHA is not on a w0w/*-release branch."
+          branch_list="$(printf '%s\n' "${branches[@]}" | jq -R . | jq -s -c .)"
+          echo "Commit is on: ${branches[*]}"
 
           runs="$(gh api --paginate --slurp "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$SHA&per_page=100")"
-          latest="$(jq -c --arg sha "$SHA" --arg repo "$REPO" '
+          latest="$(jq -c --arg sha "$SHA" --arg repo "$REPO" --argjson branches "$branch_list" '
             [.[].workflow_runs[]
              | select(.head_sha == $sha and .path == ".github/workflows/ci.yml" and .name == "OmniWM CI"
-                      and (.event == "push" or .event == "workflow_dispatch")
+                      and .event == "push" and (.head_branch as $b | $branches | index($b) != null)
                       and .repository.full_name == $repo and .head_repository.full_name == $repo)]
             | max_by(.run_number) // empty' <<< "$runs")"
-          [[ -n "$latest" ]] || fail "No OmniWM CI push or workflow_dispatch run exists for $SHA on $REPO."
+          [[ -n "$latest" ]] || fail "No OmniWM CI push run exists for $SHA on a w0w/*-release branch of $REPO."
           run_id="$(jq -r .id <<< "$latest")"
           run_url="$(jq -r .html_url <<< "$latest")"
           [[ "$run_id" =~ ^[1-9][0-9]*$ ]] || fail "Unexpected CI run id."
           [[ "$run_url" =~ ^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/actions/runs/[0-9]+$ ]] || fail "Unexpected CI run URL."
           jq -e '.status == "completed" and .conclusion == "success"' <<< "$latest" > /dev/null \
-            || fail "The latest OmniWM CI run for $SHA has not succeeded: $run_url"
+            || fail "The latest OmniWM CI push run for $SHA has not succeeded: $run_url"
 
           jobs="$(gh api --paginate --slurp "repos/$REPO/actions/runs/$run_id/jobs?filter=latest&per_page=100")"
           jq -e --arg sha "$SHA" '
@@ -83,7 +84,7 @@ jobs:
           echo "ci-url=$run_url" >> "$GITHUB_OUTPUT"
           {
             printf '## Gate passed\n\n'
-            printf -- '- Tag: `%s`\n- Commit: `%s`\n- Branch: `%s`\n- CI run: %s\n' "$TAG" "$SHA" "$branch" "$run_url"
+            printf -- '- Tag: `%s`\n- Commit: `%s`\n- Branches: `%s`\n- CI run: %s\n' "$TAG" "$SHA" "${branches[*]}" "$run_url"
           } >> "$GITHUB_STEP_SUMMARY"
   build:
     name: Build and verify
@@ -116,6 +117,15 @@ jobs:
         run: echo "$PWD/.cache/flake-tools/bin" >> "$GITHUB_PATH"
       - name: Build and ad hoc sign the app
         run: Scripts/package-app.sh release dev
+      - name: Re-sign with the hardened runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          app=dist/OmniWM.app
+          codesign --force --options runtime --sign - "$app/Contents/Frameworks/libOmniWMNowPlaying.dylib"
+          codesign --force --options runtime --sign - "$app/Contents/MacOS/omniwmctl"
+          codesign --force --options runtime --entitlements OmniWM.entitlements --sign - "$app/Contents/MacOS/OmniWM"
+          codesign --force --options runtime --entitlements OmniWM.entitlements --sign - "$app"
       - name: Verify the app bundle
         env:
           SHA: ${{ github.sha }}
@@ -146,6 +156,10 @@ jobs:
           details="$(codesign -dvv "$app" 2>&1)"
           printf '%s\n' "$details"
           grep -q '^Signature=adhoc$' <<< "$details" || fail "The app is not ad hoc signed."
+          for target in "$app" "$app/Contents/MacOS/OmniWM" "$app/Contents/MacOS/omniwmctl" "$app/Contents/Frameworks/libOmniWMNowPlaying.dylib"; do
+            codesign -dvv "$target" 2>&1 | grep -Eq '^CodeDirectory .*flags=0x[0-9a-f]+\([^)]*runtime[^)]*\)' \
+              || fail "$target lacks the hardened runtime flag."
+          done
           ! grep -q '^Authority=' <<< "$details" || fail "The app carries a certificate authority."
           expected="$(plutil -convert json -o - OmniWM.entitlements | jq -S .)"
           for target in "$app/Contents/MacOS/OmniWM" "$app"; do
