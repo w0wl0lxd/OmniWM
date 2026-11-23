@@ -68,6 +68,9 @@ struct IPCUnmanagedWindowProjection {
             windowId: Int(info.id),
             app: IPCAppRef(appInfo: controller.appInfoCache.info(for: info.pid)),
             frame: IPCRect(ScreenCoordinateSpace.toAppKit(rect: info.frame)),
+            level: Int(info.level),
+            role: evidence?[Int(info.id)]?.role,
+            subrole: evidence?[Int(info.id)]?.subrole,
             disposition: disposition,
             reason: reason
         )

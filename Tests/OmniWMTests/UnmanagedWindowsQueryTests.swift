@@ -33,6 +33,9 @@ final class UnmanagedWindowsQueryTests: XCTestCase {
                 windowId: 9_001,
                 app: IPCAppRef(name: "Brave", bundleId: "com.brave.Browser"),
                 frame: IPCRect(x: 10, y: 20, width: 800, height: 600),
+                level: 3,
+                role: "AXWindow",
+                subrole: "AXDialog",
                 disposition: .undecided,
                 reason: "requiredTitleMissing"
             )
@@ -76,6 +79,25 @@ final class UnmanagedWindowsQueryTests: XCTestCase {
         XCTAssertEqual(windows.map(\.windowId), [811_102, 811_103, 811_104])
         XCTAssertEqual(windows.map(\.disposition), [.unmanaged, .undecided, .unmanaged])
         XCTAssertEqual(windows.map(\.reason), ["externalSurface", "attributeFetchFailed", "noAccessibilityWindow"])
+    }
+
+    func testQueryReportsLevelRoleAndSubroleToSeparateSurfaces() throws {
+        let fixture = try Fixture(prefix: "UnmanagedWindowsSurface")
+        defer { fixture.controller.serviceLifecycleManager.stop() }
+        fixture.serverWindows = [
+            WindowToken(pid: 811_030, windowId: 811_130),
+            WindowToken(pid: 811_031, windowId: 811_131),
+            WindowToken(pid: 811_032, windowId: 811_132)
+        ]
+        fixture.levels[811_131] = 3
+        fixture.accessibility[811_030] = [fixture.element(811_130)]
+        fixture.accessibility[811_031] = [fixture.element(811_131, subrole: kAXDialogSubrole as String)]
+
+        let windows = fixture.router.unmanagedWindowsResult().windows
+
+        XCTAssertEqual(windows.map(\.level), [0, 3, 0])
+        XCTAssertEqual(windows.map(\.role), [kAXWindowRole as String, kAXWindowRole as String, nil])
+        XCTAssertEqual(windows.map(\.subrole), [kAXStandardWindowSubrole as String, kAXDialogSubrole as String, nil])
     }
 
     func testFrameUsesAppKitCoordinates() throws {
@@ -169,6 +191,7 @@ final class UnmanagedWindowsQueryTests: XCTestCase {
         let workspace: WorkspaceDescriptor.ID
         let router: IPCQueryRouter
         var serverWindows: [WindowToken] = []
+        var levels: [Int: Int32] = [:]
         var accessibility: [pid_t: [AXEnumeratedWindow]] = [:]
         var failingPids: Set<pid_t> = []
         var readPids: [pid_t] = []
@@ -179,7 +202,12 @@ final class UnmanagedWindowsQueryTests: XCTestCase {
             router = IPCQueryRouter(controller: controller, appVersion: nil, sessionToken: "unmanaged-windows-tests")
             router.visibleWindowsProvider = { [unowned self] in
                 serverWindows.map {
-                    WindowServerInfo(id: UInt32($0.windowId), pid: $0.pid, level: 0, frame: Self.frame)
+                    WindowServerInfo(
+                        id: UInt32($0.windowId),
+                        pid: $0.pid,
+                        level: levels[$0.windowId] ?? 0,
+                        frame: Self.frame
+                    )
                 }
             }
             router.applicationWindowsReader = { [unowned self] pid, _, _, _ in
@@ -201,7 +229,7 @@ final class UnmanagedWindowsQueryTests: XCTestCase {
             )
             return AXEnumeratedWindow(
                 axRef: WindowAdmissionTestSupport.axRef(for: WindowToken(pid: 0, windowId: windowId)),
-                axPid: nil, role: nil, subrole: subrole,
+                axPid: nil, role: kAXWindowRole as String, subrole: subrole,
                 admissionGeometry: WindowAdmissionGeometryEvidence(isSizeSettable: true, frame: Self.frame),
                 decisionEvidence: evidence ?? AXWindowDecisionEvidence(facts: facts, sizeConstraints: .unconstrained)
             )

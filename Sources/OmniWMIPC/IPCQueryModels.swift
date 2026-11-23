@@ -299,6 +299,9 @@ public struct IPCUnmanagedWindowSnapshot: Codable, Equatable, Sendable {
     public let windowId: Int
     public let app: IPCAppRef?
     public let frame: IPCRect
+    public let level: Int
+    public let role: String?
+    public let subrole: String?
     public let disposition: IPCUnmanagedWindowDisposition
     public let reason: String
 
@@ -307,6 +310,9 @@ public struct IPCUnmanagedWindowSnapshot: Codable, Equatable, Sendable {
         windowId: Int,
         app: IPCAppRef?,
         frame: IPCRect,
+        level: Int,
+        role: String? = nil,
+        subrole: String? = nil,
         disposition: IPCUnmanagedWindowDisposition,
         reason: String
     ) {
@@ -314,6 +320,9 @@ public struct IPCUnmanagedWindowSnapshot: Codable, Equatable, Sendable {
         self.windowId = windowId
         self.app = app
         self.frame = frame
+        self.level = level
+        self.role = role
+        self.subrole = subrole
         self.disposition = disposition
         self.reason = reason
     }

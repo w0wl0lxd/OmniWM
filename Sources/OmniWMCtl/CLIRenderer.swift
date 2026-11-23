@@ -284,13 +284,16 @@ extension CLIRenderer {
                 String(window.pid),
                 String(window.windowId),
                 window.app?.name ?? "-",
+                String(window.level),
+                window.role ?? "-",
+                window.subrole ?? "-",
                 window.disposition.rawValue,
                 window.reason
             ]
         }
 
         return CLITableRenderer.formatRows(
-            headers: ["PID", "WINDOW", "APP", "DISPOSITION", "REASON"],
+            headers: ["PID", "WINDOW", "APP", "LEVEL", "ROLE", "SUBROLE", "DISPOSITION", "REASON"],
             rows: rows,
             format: format
         )

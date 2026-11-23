@@ -88,10 +88,20 @@ extension IPCJSONWriter {
         try self.value(value.disposition)
         self.key("frame", &first)
         try self.value(value.frame)
+        self.key("level", &first)
+        try self.value(value.level)
         self.key("pid", &first)
         try self.value(value.pid)
         self.key("reason", &first)
         try self.value(value.reason)
+        if let fieldValue = value.role {
+            self.key("role", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.subrole {
+            self.key("subrole", &first)
+            try self.value(fieldValue)
+        }
         self.key("windowId", &first)
         try self.value(value.windowId)
         end(125)
