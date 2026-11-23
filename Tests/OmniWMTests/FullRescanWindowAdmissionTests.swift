@@ -297,6 +297,7 @@ final class FullRescanWindowAdmissionTests: XCTestCase {
         _ = manager.setManagedReplacementMetadata(metadata, for: oldToken)
         let key = AXEventHandler.ManagedReplacementKey(pid: oldToken.pid, workspaceId: originalWorkspace)
         defer { _ = handler.takeManagedReplacementBurst(for: key) }
+        handler.processWindowFramesProvider = { _ in [newToken.windowId: windowServerFrame] }
         handler.handleWindowDestroyed(
             windowId: UInt32(oldToken.windowId), pidHint: oldToken.pid, evidence: .windowClosed, windowInfo: nil
         )
@@ -2256,6 +2257,7 @@ final class FullRescanWindowAdmissionTests: XCTestCase {
             )
         )
         controller.axEventHandler.windowInfoProvider = { _ in nil }
+        controller.axEventHandler.processWindowFramesProvider = { _ in [newToken.windowId: frame] }
         controller.axEventHandler.handleCGSEvent(.closed(windowId: UInt32(oldToken.windowId)))
         await controller.axEventHandler.lifecycleQueries.task?.value
         XCTAssertNotNil(controller.workspaceManager.entry(for: oldToken))

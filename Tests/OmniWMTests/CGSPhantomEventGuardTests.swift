@@ -495,8 +495,66 @@ final class CGSPhantomEventGuardTests: XCTestCase {
         handler.releasePreparedWindowSubscription(UInt32(created.windowId))
     }
 
+    func testCloseOfASmallWindowKeepsReplacementHoldForASmallTabSibling() throws {
+        let cases: [(closing: CGSize, sibling: CGSize, holds: Bool)] = [
+            (CGSize(width: 300, height: 130), CGSize(width: 300, height: 66), true),
+            (CGSize(width: 300, height: 130), CGSize(width: 300, height: 65), false),
+            (CGSize(width: 300, height: 60), CGSize(width: 300, height: 34), true),
+            (CGSize(width: 300, height: 60), CGSize(width: 1728, height: 33), false)
+        ]
+        for (closing, sibling, holds) in cases {
+            let fixture = try Self.heldCloseFixture(size: closing)
+            let handler = fixture.controller.axEventHandler
+            defer { fixture.controller.serviceLifecycleManager.stop() }
+            handler.processWindowFramesProvider = { _ in
+                [
+                    fixture.closing.windowId: fixture.frame,
+                    949_409: CGRect(origin: fixture.frame.origin, size: sibling)
+                ]
+            }
+
+            Self.destroy(fixture, evidence: .windowClosed)
+
+            XCTAssertEqual(handler.hasPendingManagedReplacementDestroy(fixture.closing), holds)
+            XCTAssertEqual(fixture.controller.workspaceManager.entry(for: fixture.closing) != nil, holds)
+            _ = handler.takeManagedReplacementBurst(for: fixture.key)
+        }
+    }
+
+    func testProcessWindowFramesKeepOnlyTheProcessAndRejectUnreadableRows() {
+        func row(_ pid: pid_t, _ windowId: Int, _ frame: CGRect) -> [String: Any] {
+            [
+                kCGWindowOwnerPID as String: pid,
+                kCGWindowNumber as String: windowId,
+                kCGWindowBounds as String: frame.dictionaryRepresentation
+            ]
+        }
+        let frame = CGRect(x: 40, y: 60, width: 720, height: 520)
+        let rows = [row(7, 1, frame), row(8, 2, frame), row(7, 3, .zero)]
+        XCTAssertEqual(AXEventHandler.windowFrames(ofProcess: 7, in: rows), [1: frame, 3: .zero])
+        XCTAssertNil(AXEventHandler.windowFrames(ofProcess: 9, in: rows))
+        XCTAssertNil(AXEventHandler.windowFrames(ofProcess: 7, in: []))
+        for key in [kCGWindowNumber as String, kCGWindowBounds as String] {
+            var unreadable = row(7, 4, frame)
+            unreadable[key] = nil
+            XCTAssertNil(AXEventHandler.windowFrames(ofProcess: 7, in: rows + [unreadable]))
+            XCTAssertNotNil(AXEventHandler.windowFrames(ofProcess: 8, in: rows + [unreadable]))
+        }
+    }
+
     func testManagedReplacementAwaitPreservesLateMatchedCreate() async throws {
+        try await assertLateMatchedCreateRekeysFullscreenClose(processWindowFrames: nil)
+    }
+
+    func testFullscreenCloseWithoutTabSiblingStillRekeysLateMatchedCreate() async throws {
+        try await assertLateMatchedCreateRekeysFullscreenClose(
+            processWindowFrames: [949_102: CGRect(x: 160, y: 120, width: 720, height: 520)]
+        )
+    }
+
+    private func assertLateMatchedCreateRekeysFullscreenClose(processWindowFrames: [Int: CGRect]?) async throws {
         let controller = Self.controller()
+        controller.axEventHandler.processWindowFramesProvider = { _ in processWindowFrames }
         let workspaceId = try XCTUnwrap(controller.workspaceManager.workspaceId(for: "1", createIfMissing: true))
         _ = controller.workspaceManager.focusWorkspace(named: "1")
         controller.niriLayoutHandler.enableNiriLayout()
@@ -758,13 +816,15 @@ final class CGSPhantomEventGuardTests: XCTestCase {
         }
     }
 
-    private static func heldCloseFixture() throws -> HeldCloseFixture {
+    private static func heldCloseFixture(
+        size: CGSize = CGSize(width: 720, height: 520)
+    ) throws -> HeldCloseFixture {
         let controller = controller()
         let workspaceId = try XCTUnwrap(controller.workspaceManager.workspaceId(for: "1", createIfMissing: true))
         controller.niriLayoutHandler.enableNiriLayout()
         let engine = try XCTUnwrap(controller.niriEngine)
         let pid: pid_t = 949_401
-        let frame = CGRect(x: 160, y: 120, width: 720, height: 520)
+        let frame = CGRect(origin: CGPoint(x: 160, y: 120), size: size)
         let tokens = [949_402, 949_403].map { windowId in
             let token = controller.workspaceManager.addWindow(
                 AXWindowRef(element: AXUIElementCreateApplication(pid), windowId: windowId),

@@ -97,6 +97,7 @@ final class WindowCloseFocusRecoveryTests: XCTestCase {
             let world = WorldView(controller: controller, liveBoundsProvider: { _ in nil })
             let previous = try XCTUnwrap(SurfaceDerivation.deriveBorder(world: world))
             let handle = try XCTUnwrap(controller.workspaceManager.handle(for: fixture.closingToken))
+            handler.processWindowFramesProvider = { _ in [951_110: frame] }
 
             if startsWithTransientDestroy {
                 handler.handleWindowDestroyed(
@@ -203,11 +204,12 @@ final class WindowCloseFocusRecoveryTests: XCTestCase {
             }
         }
         handler.managedWindowIdentityRebindFinalizationProvider = { _, _ in true }
+        let replacementToken = WindowToken(pid: fixture.pid, windowId: 951_110)
+        handler.processWindowFramesProvider = { _ in [replacementToken.windowId: frame] }
         handler.handleWindowDestroyed(
             windowId: UInt32(fixture.closingToken.windowId), pidHint: fixture.pid,
             evidence: .windowClosed, windowInfo: nil
         )
-        let replacementToken = WindowToken(pid: fixture.pid, windowId: 951_110)
         let windowId = UInt32(replacementToken.windowId)
         handler.retainPreparedWindowSubscription(windowId)
         handler.enqueueManagedReplacementCreate(.init(

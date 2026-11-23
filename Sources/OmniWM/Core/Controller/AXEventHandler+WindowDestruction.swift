@@ -5,7 +5,7 @@ import AppKit
 import Foundation
 
 extension AXEventHandler {
-    private static let minimumTabSiblingDimension: CGFloat = 100
+    private static let tabSiblingDimensions: ClosedRange<CGFloat> = 34 ... 100
 
     func hasPendingWindowClose(_ token: WindowToken, workspaceId: WorkspaceDescriptor.ID) -> Bool {
         if hasPendingManagedReplacementDestroy(token, workspaceId: workspaceId, evidence: .windowClosed) {
@@ -245,9 +245,15 @@ extension AXEventHandler {
     }
 
     static func windowFrames(ofProcess pid: pid_t) -> [Int: CGRect]? {
-        guard let windows = CGWindowListCopyWindowInfo(
-            [.optionAll, .excludeDesktopElements], kCGNullWindowID
-        ) as? [[String: Any]] else { return nil }
+        MainThreadAXSpanTrace.measure(.windowServerBatchQuery, pid: pid) {
+            guard let windows = CGWindowListCopyWindowInfo(
+                [.optionAll, .excludeDesktopElements], kCGNullWindowID
+            ) as? [[String: Any]] else { return nil as [Int: CGRect]? }
+            return windowFrames(ofProcess: pid, in: windows)
+        } succeeded: { $0 != nil }
+    }
+
+    static func windowFrames(ofProcess pid: pid_t, in windows: [[String: Any]]) -> [Int: CGRect]? {
         var frames: [Int: CGRect] = [:]
         for window in windows where window[kCGWindowOwnerPID as String] as? pid_t == pid {
             guard let windowId = window[kCGWindowNumber as String] as? Int,
@@ -260,13 +266,21 @@ extension AXEventHandler {
     }
 
     func closedWithoutTabSibling(_ burst: PendingManagedReplacementBurst, pid: pid_t) -> Bool {
-        guard let controller, burst.creates.isEmpty,
-              burst.destroys.allSatisfy({ $0.candidate.evidence == .windowClosed }),
+        guard let manager = controller?.workspaceManager, burst.creates.isEmpty,
+              burst.destroys.allSatisfy({
+                  $0.candidate.evidence == .windowClosed
+                      && manager.nativeFullscreenRecord(for: $0.candidate.token) == nil
+                      && manager.layoutReason(for: $0.candidate.token) != .nativeFullscreen
+              }),
               let frames = processWindowFramesProvider(pid)
         else { return false }
+        let minimumDimension = burst.destroys.map { destroy in
+            let frame = destroy.candidate.replacementMetadata.frame ?? .zero
+            return (min(frame.width, frame.height) - FrameTolerance.managedReplacementSize)
+                .clamped(to: Self.tabSiblingDimensions)
+        }.min() ?? Self.tabSiblingDimensions.lowerBound
         return !frames.contains { windowId, frame in
-            min(frame.width, frame.height) >= Self.minimumTabSiblingDimension
-                && controller.workspaceManager.entry(forWindowId: windowId) == nil
+            min(frame.width, frame.height) >= minimumDimension && manager.entry(forWindowId: windowId) == nil
         }
     }
 
