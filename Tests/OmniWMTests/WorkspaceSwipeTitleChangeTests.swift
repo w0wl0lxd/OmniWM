@@ -11,6 +11,7 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
     private static let bundleId = "com.example.swipe-title"
     private static let token = WindowToken(pid: 764_961, windowId: 764_962)
 
+    @MainActor
     private struct Fixture {
         let controller: WMController
         let swipe: WorkspaceSwipePresentation
