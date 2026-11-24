@@ -17,8 +17,9 @@ extension WorkspaceSwipePresentation {
     }
 
     func warmPreviewsAfterMotion() {
-        guard warmsPreviews, let monitor = controller?.monitorForInteraction() else { return }
+        guard warmsPreviews, let controller, let monitor = controller.monitorForInteraction() else { return }
         guard isBusy(monitor.id) else {
+            guard !controller.isOverviewOpen() else { return }
             deferredWarms[monitor.id] = nil
             warmPreviews(on: monitor.id)
             return

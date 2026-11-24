@@ -1449,6 +1449,8 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
     func testDeferredWarmupWaitsForOverviewToClose() async throws {
         let (fixture, polls) = try deferredWarmupFixture()
         let controller = fixture.controller
+        // Make Overview transitions synchronous without discarding the swipe capture under test.
+        controller.motionPolicy.onAnimationsEnabledChange = {}
         try fixture.startScroll()
         fixture.applyEffectPlan()
         let warm = try XCTUnwrap(fixture.swipe.warmTask)
@@ -1463,11 +1465,19 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         XCTAssertNil(fixture.swipe.warmTask)
         XCTAssertEqual(polls.durations.count, 1)
 
+        controller.motionPolicy.animationsEnabled = true
+        fixture.applyEffectPlan()
+        XCTAssertNotNil(fixture.swipe.deferredWarms[fixture.monitor.id])
+        XCTAssertFalse(fixture.preview.isWarming)
+        XCTAssertNil(fixture.swipe.warmTask)
+
         polls.onPoll = { _ in }
+        controller.motionPolicy.animationsEnabled = false
         controller.windowActionHandler.dismissOverview()
         XCTAssertFalse(controller.isOverviewOpen())
         controller.motionPolicy.animationsEnabled = true
-        await fixture.swipe.warmTask?.value
+        let resumed = try XCTUnwrap(fixture.swipe.warmTask)
+        await resumed.value
 
         XCTAssertEqual(polls.durations.count, 2)
         XCTAssertTrue(fixture.preview.isWarming)
