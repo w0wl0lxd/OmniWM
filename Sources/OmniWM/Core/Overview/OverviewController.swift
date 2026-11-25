@@ -403,6 +403,7 @@ extension OverviewController {
             updateWindowDisplays()
         }
         wmController?.layoutRefreshController.collectUnusedWorkspacesIfIdle()
+        wmController?.layoutRefreshController.workspaceSwipe.resumeDeferredWarms()
     }
 
     func handleManagedWindowRemoved(_ entry: WindowState) {

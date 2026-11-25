@@ -1269,6 +1269,274 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         XCTAssertEqual(fixture.driver.streams[0].request.pixelWidth, Int(ceil(settledWidth)))
     }
 
+    func testEffectPlanWarmsPreviewsAtOnceOnAStillDisplay() throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+
+        fixture.applyEffectPlan()
+
+        XCTAssertTrue(fixture.preview.isWarming)
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertTrue(polls.durations.isEmpty)
+    }
+
+    func testSlideRightAfterAnOpenUsesThePreviewThePlanWarmed() async throws {
+        let (fixture, _) = try deferredWarmupFixture()
+        let manager = fixture.controller.workspaceManager
+        let source = try XCTUnwrap(manager.activeWorkspace(on: fixture.monitor.id)?.id)
+        let next = try XCTUnwrap(manager.nextWorkspaceInOrder(on: fixture.monitor.id, from: source, wrapAround: true))
+        fixture.applyEffectPlan()
+        try await fixture.driver.waitForStarts(1)
+        fixture.driver.completeAllStarts()
+        try await publish(try makeOverviewPreviewFrame(), through: fixture.driver.streams[0], into: fixture.capture)
+        try await fixture.driver.waitForStops(1)
+
+        XCTAssertTrue(fixture.swipe.animateSwitch(to: next.id, on: fixture.monitor.id, isNext: true))
+
+        fixture.swipe.cancelAll(reason: "test-complete")
+    }
+
+    func testEffectPlanDefersWarmupUntilScrollDwindleAndClosingMotionEnds() async throws {
+        typealias Change = @MainActor (PreviewFixture, WorkspaceDescriptor.ID) -> Void
+        let motions: [(start: Change, stop: Change)] = [
+            (
+                { $0.refresh.niriHandler.scrollAnimationByDisplay[$0.monitor.displayId] = $1 },
+                { fixture, _ in fixture.refresh.niriHandler.scrollAnimationByDisplay.removeAll() }
+            ),
+            (
+                { $0.refresh.dwindleHandler.dwindleAnimationByDisplay[$0.monitor.displayId] = ($1, $0.monitor) },
+                { fixture, _ in fixture.refresh.dwindleHandler.dwindleAnimationByDisplay.removeAll() }
+            ),
+            (
+                { fixture, _ in
+                    fixture.refresh.layoutState.closingAnimationsByDisplay[fixture.monitor.displayId] = [
+                        1: LayoutRefreshState.ClosingAnimation(
+                            pid: 1, windowId: 1,
+                            axRef: AXWindowRef(element: AXUIElementCreateApplication(1), windowId: 1),
+                            fromFrame: .zero, displacement: .zero,
+                            animation: SpringAnimation(from: 0, to: 1, startTime: 0)
+                        )
+                    ]
+                },
+                { fixture, _ in
+                    fixture.refresh.layoutState.closingAnimationsByDisplay[fixture.monitor.displayId] = [:]
+                }
+            )
+        ]
+        for motion in motions {
+            let (fixture, polls) = try deferredWarmupFixture()
+            let source = try XCTUnwrap(fixture.controller.workspaceManager.activeWorkspace(on: fixture.monitor.id)?.id)
+            motion.start(fixture, source)
+
+            fixture.applyEffectPlan()
+
+            XCTAssertFalse(fixture.preview.isWarming)
+            XCTAssertTrue(fixture.driver.streams.isEmpty)
+            let warm = try XCTUnwrap(fixture.swipe.warmTask)
+            polls.onPoll = { poll in
+                XCTAssertFalse(fixture.preview.isWarming)
+                if poll == 3 { motion.stop(fixture, source) }
+            }
+            await warm.value
+
+            XCTAssertEqual(polls.durations, Array(repeating: .milliseconds(100), count: 3))
+            XCTAssertNil(fixture.swipe.warmTask)
+            XCTAssertTrue(fixture.preview.isWarming)
+        }
+    }
+
+    func testEffectPlanDuringASwipeWaitsForTheSwipeToEnd() async throws {
+        let (controller, swipe, monitor, _) = try fixture()
+        let polls = scriptWarmPolls(controller, swipe)
+        _ = try settleForwardSwipe(swipe, on: monitor)
+
+        controller.layoutRefreshController.applyEffectPlan(EffectPlan(), controller: controller)
+
+        let warm = try XCTUnwrap(swipe.warmTask)
+        polls.onPoll = { poll in
+            XCTAssertNotNil(swipe.deferredWarms[monitor.id])
+            if poll == 2 { swipe.cancelAll(reason: "test-complete") }
+        }
+        await warm.value
+
+        XCTAssertEqual(polls.durations.count, 2)
+        XCTAssertTrue(swipe.deferredWarms.isEmpty)
+        XCTAssertNil(swipe.warmTask)
+    }
+
+    func testDeferredWarmupIsBounded() async throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        try fixture.startScroll()
+
+        fixture.applyEffectPlan()
+        await fixture.swipe.warmTask?.value
+
+        XCTAssertEqual(polls.durations, Array(repeating: .milliseconds(100), count: 20))
+        XCTAssertTrue(fixture.preview.isWarming)
+    }
+
+    func testDeferredWarmupCoalescesEffectPlansAndRechecksItsGates() async throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        try fixture.startScroll()
+        fixture.applyEffectPlan()
+        fixture.applyEffectPlan()
+        let warm = try XCTUnwrap(fixture.swipe.warmTask)
+        polls.onPoll = { _ in
+            fixture.controller.hasStartedServices = false
+            fixture.refresh.niriHandler.scrollAnimationByDisplay.removeAll()
+        }
+
+        await warm.value
+
+        XCTAssertEqual(polls.durations.count, 1)
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertFalse(fixture.preview.isWarming)
+    }
+
+    func testEffectPlanCreatesNoWarmupTaskWhileSwipesAndSlidesAreOff() throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        fixture.controller.settings.gestures.workspaceSwipeEnabled = false
+        try fixture.startScroll()
+
+        fixture.applyEffectPlan()
+
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertTrue(fixture.swipe.deferredWarms.isEmpty)
+        XCTAssertTrue(polls.durations.isEmpty)
+    }
+
+    func testResetCancelsDeferredWarmup() async throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        try fixture.startScroll()
+        fixture.applyEffectPlan()
+        let warm = try XCTUnwrap(fixture.swipe.warmTask)
+        polls.onPoll = { _ in
+            fixture.refresh.niriHandler.scrollAnimationByDisplay.removeAll()
+            fixture.refresh.resetState()
+        }
+
+        await warm.value
+
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertTrue(fixture.swipe.deferredWarms.isEmpty)
+        XCTAssertFalse(fixture.preview.isWarming)
+    }
+
+    func testDeferredWarmupServesEachRequestedMonitorAndGatesOnItsOwnDisplay() async throws {
+        let (controller, swipe, monitor, other, source, _) = try twoMonitorFixture { 1.4 }
+        let polls = scriptWarmPolls(controller, swipe)
+        let refresh = controller.layoutRefreshController
+        refresh.niriHandler.scrollAnimationByDisplay[monitor.displayId] = source
+        _ = controller.workspaceManager.setInteractionMonitor(monitor.id)
+        refresh.applyEffectPlan(EffectPlan(), controller: controller)
+        XCTAssertNil(swipe.previews[monitor.id])
+        let warm = try XCTUnwrap(swipe.warmTask)
+
+        _ = controller.workspaceManager.setInteractionMonitor(other.id)
+        refresh.applyEffectPlan(EffectPlan(), controller: controller)
+
+        XCTAssertNotNil(swipe.previews[other.id])
+        XCTAssertNil(swipe.previews[monitor.id])
+        polls.onPoll = { poll in
+            XCTAssertNil(swipe.previews[monitor.id])
+            if poll == 2 { refresh.niriHandler.scrollAnimationByDisplay.removeAll() }
+        }
+        await warm.value
+
+        XCTAssertNotNil(swipe.previews[monitor.id])
+        XCTAssertEqual(polls.durations.count, 2)
+    }
+
+    func testDeferredWarmupWaitsForOverviewToClose() async throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        let controller = fixture.controller
+        // Make Overview transitions synchronous without discarding the swipe capture under test.
+        controller.motionPolicy.onAnimationsEnabledChange = {}
+        try fixture.startScroll()
+        fixture.applyEffectPlan()
+        let warm = try XCTUnwrap(fixture.swipe.warmTask)
+        polls.onPoll = { _ in
+            fixture.refresh.niriHandler.scrollAnimationByDisplay.removeAll()
+            controller.motionPolicy.animationsEnabled = false
+            controller.toggleOverview()
+            XCTAssertTrue(controller.isOverviewOpen())
+        }
+        await warm.value
+        XCTAssertFalse(fixture.preview.isWarming)
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertEqual(polls.durations.count, 1)
+
+        controller.motionPolicy.animationsEnabled = true
+        fixture.applyEffectPlan()
+        XCTAssertNotNil(fixture.swipe.deferredWarms[fixture.monitor.id])
+        XCTAssertFalse(fixture.preview.isWarming)
+        XCTAssertNil(fixture.swipe.warmTask)
+
+        polls.onPoll = { _ in }
+        controller.motionPolicy.animationsEnabled = false
+        controller.windowActionHandler.dismissOverview()
+        XCTAssertFalse(controller.isOverviewOpen())
+        controller.motionPolicy.animationsEnabled = true
+        let resumed = try XCTUnwrap(fixture.swipe.warmTask)
+        await resumed.value
+
+        XCTAssertEqual(polls.durations.count, 2)
+        XCTAssertTrue(fixture.preview.isWarming)
+    }
+
+    func testStillDisplayWarmupRequestedUnderOverviewRunsAfterItCloses() async throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        let controller = fixture.controller
+        // Make Overview transitions synchronous without discarding the swipe capture under test.
+        controller.motionPolicy.onAnimationsEnabledChange = {}
+        controller.motionPolicy.animationsEnabled = false
+        controller.toggleOverview()
+        XCTAssertTrue(controller.isOverviewOpen())
+        controller.motionPolicy.animationsEnabled = true
+
+        fixture.applyEffectPlan()
+        XCTAssertNotNil(fixture.swipe.deferredWarms[fixture.monitor.id])
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertFalse(fixture.preview.isWarming)
+
+        controller.motionPolicy.animationsEnabled = false
+        controller.windowActionHandler.dismissOverview()
+        XCTAssertFalse(controller.isOverviewOpen())
+        controller.motionPolicy.animationsEnabled = true
+        let resumed = try XCTUnwrap(fixture.swipe.warmTask)
+        await resumed.value
+
+        XCTAssertEqual(polls.durations.count, 1)
+        XCTAssertTrue(fixture.preview.isWarming)
+    }
+
+    func testKeyboardFallbackLimitsTheStreamsItOpenedToTheirFirstFrame() async throws {
+        let fixture = try previewFixture()
+        let manager = fixture.controller.workspaceManager
+        let source = try XCTUnwrap(manager.activeWorkspace(on: fixture.monitor.id)?.id)
+        let next = try XCTUnwrap(manager.nextWorkspaceInOrder(on: fixture.monitor.id, from: source, wrapAround: true))
+
+        XCTAssertFalse(fixture.swipe.animateSwitch(to: next.id, on: fixture.monitor.id, isNext: true))
+
+        XCTAssertTrue(fixture.preview.isWarming)
+        try await fixture.driver.waitForStarts(1)
+        fixture.driver.completeAllStarts()
+        try await publish(try makeOverviewPreviewFrame(), through: fixture.driver.streams[0], into: fixture.capture)
+        try await fixture.driver.waitForStops(1)
+        XCTAssertEqual(fixture.driver.streams.map(\.stopCount), [1])
+        XCTAssertFalse(fixture.preview.isWarming)
+    }
+
+    func testGestureEndWarmsPreviewsAtOnceEvenWhileTheDisplayMoves() throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        try fixture.startScroll()
+
+        fixture.swipe.stopPreparing(warm: true)
+
+        XCTAssertTrue(fixture.preview.isWarming)
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertTrue(polls.durations.isEmpty)
+    }
+
     func testTurningFeaturesOffReleasesThePreviewAndItsCacheOnlyWhenNothingUsesThem() async throws {
         typealias Change = @MainActor (WMController) -> Void
         let swipesOn: Change = { $0.settings.gestures.workspaceSwipeEnabled = true }
@@ -1421,6 +1689,21 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         let swipe: WorkspaceSwipePresentation
         let monitor: Monitor
         let handle: WindowHandle
+
+        @MainActor var refresh: LayoutRefreshController {
+            controller.layoutRefreshController
+        }
+
+        @MainActor
+        func applyEffectPlan() {
+            refresh.applyEffectPlan(EffectPlan(), controller: controller)
+        }
+
+        @MainActor
+        func startScroll() throws {
+            let source = try XCTUnwrap(controller.workspaceManager.activeWorkspace(on: monitor.id)?.id)
+            refresh.niriHandler.scrollAnimationByDisplay[monitor.displayId] = source
+        }
     }
 
     private func previewFixture() throws -> PreviewFixture {
@@ -1458,6 +1741,33 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
             controller: controller, driver: driver, capture: capture, preview: preview, swipe: swipe,
             monitor: monitor, handle: handle
         )
+    }
+
+    @MainActor
+    private final class WarmPolls {
+        var durations: [Duration] = []
+        var onPoll: @MainActor (Int) -> Void = { _ in }
+    }
+
+    private func scriptWarmPolls(_ controller: WMController, _ swipe: WorkspaceSwipePresentation) -> WarmPolls {
+        let polls = WarmPolls()
+        swipe.warmSleep = { duration in
+            polls.durations.append(duration)
+            guard polls.durations.count <= 40 else { throw CancellationError() }
+            polls.onPoll(polls.durations.count)
+        }
+        controller.hasStartedServices = true
+        controller.settings.gestures.workspaceSwipeEnabled = true
+        addTeardownBlock { @MainActor in
+            swipe.warmTask?.cancel()
+            controller.hasStartedServices = false
+        }
+        return polls
+    }
+
+    private func deferredWarmupFixture() throws -> (PreviewFixture, WarmPolls) {
+        let fixture = try previewFixture()
+        return (fixture, scriptWarmPolls(fixture.controller, fixture.swipe))
     }
 
     private func requireContactWarmup(_ fixture: PreviewFixture) throws {

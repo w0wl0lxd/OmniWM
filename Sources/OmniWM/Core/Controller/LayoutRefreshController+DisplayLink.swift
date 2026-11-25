@@ -360,7 +360,7 @@ extension LayoutRefreshController {
         }
     }
 
-    private func hasDisplayLinkWork(for displayId: CGDirectDisplayID) -> Bool {
+    func hasDisplayLinkWork(for displayId: CGDirectDisplayID) -> Bool {
         workspaceSwipe.hasDisplayWork(displayId)
             || niriHandler.scrollAnimationByDisplay[displayId] != nil
             || dwindleHandler.dwindleAnimationByDisplay[displayId] != nil
