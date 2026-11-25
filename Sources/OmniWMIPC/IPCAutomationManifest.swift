@@ -47,11 +47,13 @@ public enum IPCQuerySelectorName: String, Codable, CaseIterable, Equatable, Hash
 
 public enum IPCCommandArgumentKind: String, Codable, CaseIterable, Equatable, Sendable {
     case appID = "app-id"
+    case bundleID = "bundle-id"
     case direction
     case workspaceNumber = "workspace-number"
     case columnIndex = "column-index"
     case windowIndex = "window-index"
     case scratchpadIndex = "scratchpad-index"
+    case revealSeconds = "reveal-seconds"
     case layout
     case paletteMode = "palette-mode"
     case switcherDirection = "switcher-direction"
@@ -64,6 +66,8 @@ public enum IPCCommandArgumentKind: String, Codable, CaseIterable, Equatable, Se
         switch self {
         case .appID:
             "<app-id>"
+        case .bundleID:
+            "<bundle-id>"
         case .direction:
             "<left|right|up|down>"
         case .workspaceNumber,
@@ -71,6 +75,8 @@ public enum IPCCommandArgumentKind: String, Codable, CaseIterable, Equatable, Se
              .windowIndex,
              .scratchpadIndex:
             "<number>"
+        case .revealSeconds:
+            "<seconds>"
         case .layout:
             "<default|niri|dwindle>"
         case .paletteMode:
@@ -123,6 +129,7 @@ public struct IPCCommandArgumentDescriptor: Codable, Equatable, Sendable {
     public let summary: String
 
     static let appID = Self(kind: .appID, summary: "Hosted OmniShell app identifier.")
+    static let bundleID = Self(kind: .bundleID, summary: "Bundle identifier of an app hidden by Hidden Bar.")
     static let direction = Self(
         kind: .direction,
         summary: "Direction argument."
@@ -146,6 +153,10 @@ public struct IPCCommandArgumentDescriptor: Codable, Equatable, Sendable {
     static let scratchpadIndex = Self(
         kind: .scratchpadIndex,
         summary: "Scratchpad slot from 1 to 10."
+    )
+    static let revealSeconds = Self(
+        kind: .revealSeconds,
+        summary: "Seconds from 2 to 30 before the item is hidden again; omitted uses the Hidden Bar interval."
     )
     static let layout = Self(
         kind: .layout,

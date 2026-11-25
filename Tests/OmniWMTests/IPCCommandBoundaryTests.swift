@@ -57,6 +57,7 @@ final class IPCCommandBoundaryTests: XCTestCase {
             ("move-to-workspace-on-monitor", "workspaceNumber"), ("set-workspace-layout", "layout"),
             ("open-command-palette-mode", "mode"),
             ("resize", "axis"), ("resize-focused", "operation"), ("set-container-primary-span", "change"),
+            ("hidden-bar-reveal", "bundleId"),
             ("app-open", "appId"), ("app-new-window", "appId")
         ]
         for payload in payloads {
@@ -151,14 +152,16 @@ final class IPCCommandBoundaryTests: XCTestCase {
 
     private func argument(_ kind: IPCCommandArgumentKind) -> IPCCommandArgumentValue {
         switch kind {
-        case .appID:
+        case .appID,
+             .bundleID:
             .appID("example")
         case .direction:
             .direction(.left)
         case .workspaceNumber,
              .columnIndex,
              .windowIndex,
-             .scratchpadIndex:
+             .scratchpadIndex,
+             .revealSeconds:
             .integer(1)
         case .layout:
             .layout(.niri)

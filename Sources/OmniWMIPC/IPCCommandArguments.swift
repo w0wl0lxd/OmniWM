@@ -95,6 +95,34 @@ enum IPCCommandArgumentSource {
         }
     }
 
+    func hiddenBarReveal() throws -> IPCCommandRequest {
+        let bundleID: String
+        let seconds: Int?
+        switch self {
+        case let .values(arguments):
+            guard (1 ... 2).contains(arguments.count), case let .appID(value) = arguments[0] else {
+                throw IPCCommandRequestConstructionError.invalidArgumentType
+            }
+            bundleID = value
+            if arguments.count == 2 {
+                guard case let .integer(value) = arguments[1] else {
+                    throw IPCCommandRequestConstructionError.invalidArgumentType
+                }
+                seconds = value
+            } else {
+                seconds = nil
+            }
+        case let .json(container):
+            let arguments = try container.decode(IPCHiddenBarRevealArguments.self, forKey: .arguments)
+            bundleID = arguments.bundleId
+            seconds = arguments.seconds
+        }
+        guard !bundleID.isEmpty, seconds.map(IPCHiddenBarReveal.secondsRange.contains) != false else {
+            throw IPCCommandRequestConstructionError.invalidArgumentType
+        }
+        return .hiddenBarReveal(bundleID: bundleID, seconds: seconds)
+    }
+
     func sizeChange() throws -> IPCSizeChange {
         switch self {
         case let .values(arguments):
@@ -206,6 +234,10 @@ struct IPCCommandArgumentWriter {
         try container.encode(IPCWindowSwitcherArguments(direction: direction, scope: scope), forKey: .arguments)
     }
 
+    mutating func encode(revealing bundleID: String, seconds: Int?) throws {
+        try container.encode(IPCHiddenBarRevealArguments(bundleId: bundleID, seconds: seconds), forKey: .arguments)
+    }
+
     mutating func encode(sizeChange value: IPCSizeChange) throws {
         try container.encode(IPCSizeChangeArguments(change: value), forKey: .arguments)
     }
@@ -285,6 +317,11 @@ private struct IPCPaletteModeArguments: Codable, Equatable, Sendable {
 private struct IPCWindowSwitcherArguments: Codable, Equatable, Sendable {
     let direction: IPCWindowSwitcherDirection
     let scope: IPCWindowSwitcherScope?
+}
+
+private struct IPCHiddenBarRevealArguments: Codable, Equatable, Sendable {
+    let bundleId: String
+    let seconds: Int?
 }
 
 private struct IPCResizeArguments: Codable, Equatable, Sendable {

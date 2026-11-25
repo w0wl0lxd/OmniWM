@@ -14,6 +14,12 @@ final class CLICompletionCatalogTests: XCTestCase {
         }
     }
 
+    func testHiddenBarCommandsCompleteWithoutArgumentSuggestions() {
+        XCTAssertEqual(CLICompletionCatalog.commandSlotThreeSuggestionsByFirst["hidden-bar"], ["panel", "reveal"])
+        XCTAssertNil(CLICompletionCatalog.commandSlotFourSuggestionsByPath["hidden-bar reveal"])
+        XCTAssertNil(CLICompletionCatalog.commandSlotFiveSuggestionsByPath["hidden-bar reveal"])
+    }
+
     func testFocusCombinesDirectArgumentsAndNestedCommands() {
         XCTAssertEqual(
             CLICompletionCatalog.commandSlotThreeSuggestionsByFirst["focus"],

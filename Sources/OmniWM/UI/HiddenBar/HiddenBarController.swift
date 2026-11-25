@@ -71,8 +71,8 @@ final class HiddenBarController {
         }
     }
 
-    func isExemptWindow(_ window: NSWindow) -> Bool {
-        statusItems.ownsStatusItemWindow(window) || WorkspaceBarMenuButton.contains(NSApp.currentEvent, in: window)
+    func isExemptWindow(_ window: NSWindow, event: NSEvent? = NSApp.currentEvent) -> Bool {
+        statusItems.ownsStatusItemWindow(window) || WorkspaceBarMenuButton.togglesHiddenBar(event, in: window)
     }
 
     var isHidingAvailable: Bool {
@@ -383,6 +383,20 @@ extension HiddenBarController {
             await forwarder.forward(to: target)
         }
         finishActivation(activation)
+    }
+
+    func reveal(_ bundleID: String, seconds: Int?) -> ExternalCommandResult {
+        guard settings.effectiveHiddenBarEnabled, hider.available else { return .ignoredDisabled }
+        let running = HiddenBarRunningAppsSnapshot.current().candidates
+        guard settings.hiddenBar.hiddenBundleIDs.contains(bundleID),
+              let owner = running.first(where: { $0.bundleID == bundleID })
+        else { return .notFound }
+        guard temporarilyReveal(bundleID, ownerPID: owner.pid, withMenuAccess: true) else { return .noChange }
+        if activeActivation == nil, menuSession.bundleID == nil {
+            let interval = seconds.map(Double.init) ?? settings.hiddenBar.resolvedRehideIntervalSeconds
+            reconcealment.schedule(intervalSeconds: interval)
+        }
+        return .executed
     }
 
     private func temporarilyReveal(_ bundleID: String, ownerPID: pid_t, withMenuAccess: Bool = false) -> Bool {

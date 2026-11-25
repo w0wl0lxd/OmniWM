@@ -97,6 +97,7 @@ extension NiriLayoutEngine {
         workspaceId: WorkspaceDescriptor.ID,
         geometry: NiriLayoutGeometry,
         animationTime: TimeInterval? = nil,
+        sampleTime: TimeInterval? = nil,
         hiddenPlacementMonitor: HiddenPlacementMonitorContext? = nil,
         hiddenPlacementMonitors: [HiddenPlacementMonitorContext] = [],
         viewOffsetOverride: CGFloat? = nil,
@@ -117,7 +118,7 @@ extension NiriLayoutEngine {
             return
         }
         let context = NiriCalculationContext(
-            geometry: geometry, time: animationTime ?? CACurrentMediaTime(),
+            geometry: geometry, time: animationTime ?? sampleTime ?? CACurrentMediaTime(),
             hiddenPlacementMonitor: hiddenPlacementMonitor,
             hiddenPlacementMonitors: hiddenPlacementMonitors, edgePictures: edgePictures,
             recordsPresentationGeometry: recordsPresentationGeometry

@@ -28,8 +28,7 @@ extension IPCCommandRequest {
             self = try arguments.requireNoArguments(.openCommandPalette)
         case .openCommandPaletteMode:
             self = try .openCommandPaletteMode(mode: arguments.paletteMode())
-        case .windowSwitcher:
-            self = try arguments.windowSwitcher()
+        case .windowSwitcher: self = try arguments.windowSwitcher()
         case .raiseAllFloatingWindows:
             self = try arguments.requireNoArguments(.raiseAllFloatingWindows)
         case .toggleFloatingFocus:
@@ -52,6 +51,7 @@ extension IPCCommandRequest {
             self = try .scratchpad(IPCScratchpadCommand(name: name, arguments: arguments))
         case .openMenuAnywhere:
             self = try arguments.requireNoArguments(.openMenuAnywhere)
+        case .hiddenBarReveal: self = try arguments.hiddenBarReveal()
         case .shellAppOpen:
             self = try .shellAppOpen(appID: arguments.appID())
         case .shellAppNewWindow:
