@@ -38,6 +38,7 @@ final class NiriSampleClockTests: XCTestCase {
             ))
         }
 
+        manager.withNiriViewportState(for: fixture.workspaceId) { $0.jumpOffset(to: 0) }
         manager.withNiriViewportState(for: fixture.workspaceId) { $0.springOffset(to: 400) }
         XCTAssertTrue(handler.registerScrollAnimation(fixture.workspaceId, on: fixture.monitor.displayId))
         relayout()
