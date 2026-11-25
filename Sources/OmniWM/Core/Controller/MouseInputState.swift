@@ -194,13 +194,19 @@ struct MouseInputState {
     var gestureLastAverageX: CGFloat = 0.0
     var gestureLastAverageY: CGFloat = 0.0
     var gestureLastTimestamp: TimeInterval = 0
+    var gestureArmedTimestamp: TimeInterval = 0
+    var heldGestureFrame: (metrics: MouseEventHandler.GestureFrameMetrics, timestamp: TimeInterval)?
     var lockedGestureContext: LockedGestureContext?
     var activeGestureMode: TrackpadGestureMode?
     var gestureFingerCountMismatchSince: TimeInterval?
     var viewportGestureSessionID: AnimationDriver.GestureSessionID?
     var workspaceSwipeFired = false
     let workspaceSwipeTracker = SwipeTracker()
-    var suppressGestureStartUntilAllTouchesLift = false
+    var suppressGestureStartUntilAllTouchesLift = false {
+        didSet { droppedGestureContext = nil }
+    }
+
+    var droppedGestureContext: LockedGestureContext?
     var contactSessions = MultitouchContactSessions()
     var consumedTrackpadSessions: [UInt64: MultitouchContactSession] = [:]
     var horizontalWheelTracker = NiriScrollTracker(tick: niriWheelScrollTickAmount)

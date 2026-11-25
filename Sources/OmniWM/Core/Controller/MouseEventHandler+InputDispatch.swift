@@ -393,9 +393,20 @@ extension MouseEventHandler {
             tapInputs.consumeTrackpadScrollUntilAllTouchesLift = false
             return true
         }
-        if state.suppressGestureStartUntilAllTouchesLift { return false }
+        if state.suppressGestureStartUntilAllTouchesLift, !releaseDroppedGesture(to: activeTouchCount) { return false }
         guard let config = trackpadGestureConfig else { return false }
         return TrackpadGestureIntent.allowsGestureStart(config, fingerCount: activeTouchCount)
+    }
+
+    private func releaseDroppedGesture(to activeTouchCount: Int) -> Bool {
+        guard let dropped = state.droppedGestureContext,
+              let config = trackpadGestureConfig,
+              TrackpadGestureIntent.allowsRearm(
+                  config, from: dropped.fingerCount, overviewAction: dropped.overviewAction, to: activeTouchCount
+              )
+        else { return false }
+        state.suppressGestureStartUntilAllTouchesLift = false
+        return true
     }
 
     nonisolated static func activeTouchCount(in touches: [GestureTouchSample]) -> Int {

@@ -56,12 +56,12 @@ final class WorkspaceSwipePreview {
     private let backdrop: WorkspaceSwipeBackdrop
     private let captureDisplay: @MainActor (Monitor, CGRect) async -> CGImage?
     private var sourceSnapshot: CGImage?
-    private var sourceSnapshotLayer: CALayer?
+    private(set) var sourceSnapshotLayer: CALayer?
     private(set) var sourceSnapshotTask: Task<Void, Never>?
     private var tokens: [WindowHandle: WindowToken] = [:]
     private var panel: WorkspaceSwipePreviewPanel?
-    private var sourceLayer: CALayer?
-    private var destinationLayer: CALayer?
+    private(set) var sourceLayer: CALayer?
+    private(set) var destinationLayer: CALayer?
     private var contents: [WindowHandle: [Content]] = [:]
     private(set) var isWarming = false
 
@@ -216,14 +216,12 @@ final class WorkspaceSwipePreview {
         CATransaction.setDisableActions(true)
         let scale = Self.scale(for: monitor)
         root.addSublayer(makeWallpaperLayer(wallpaperImage, monitor: monitor, frame: frame))
-        let sourceLayer = makeWorkspaceLayer(
-            source, monitor: monitor, frame: frame, scale: scale, image: wallpaperImage
-        )
-        let destinationLayer = makeWorkspaceLayer(
-            destination, monitor: monitor, frame: frame, scale: scale, image: wallpaperImage
-        )
+        let sourceLayer = makeWorkspaceLayer(source, frame: frame, scale: scale)
+        let destinationLayer = makeWorkspaceLayer(destination, frame: frame, scale: scale)
         destinationLayer.isHidden = true
-        sourceSnapshotLayer = makeSourceSnapshotLayer(in: sourceLayer)
+        sourceSnapshotLayer = makeSourceSnapshotLayer(
+            in: sourceLayer, mask: makeWorkspaceLayer(source, frame: frame, scale: scale)
+        )
         root.addSublayer(sourceLayer)
         root.addSublayer(destinationLayer)
         self.sourceLayer = sourceLayer
@@ -246,9 +244,7 @@ final class WorkspaceSwipePreview {
     }
 
     func replace(source: [Item], destination: [Item], monitor: Monitor, workingFrame: CGRect? = nil) -> Bool {
-        guard let root = panel?.contentView?.layer, hasCaptureAccess(),
-              let wallpaperImage = backdrop.image(for: monitor)
-        else { return false }
+        guard let root = panel?.contentView?.layer, hasCaptureAccess() else { return false }
         let frame = workingFrame ?? monitor.visibleFrame
         let source = source.filter { $0.frame.intersects(frame) }
         let destination = destination.filter { $0.frame.intersects(frame) }
@@ -265,12 +261,8 @@ final class WorkspaceSwipePreview {
         CATransaction.setDisableActions(true)
         CATransaction.setCompletionBlock { withExtendedLifetime(previous) {} }
         let scale = Self.scale(for: monitor)
-        let sourceLayer = makeWorkspaceLayer(
-            source, monitor: monitor, frame: frame, scale: scale, image: wallpaperImage
-        )
-        let destinationLayer = makeWorkspaceLayer(
-            destination, monitor: monitor, frame: frame, scale: scale, image: wallpaperImage
-        )
+        let sourceLayer = makeWorkspaceLayer(source, frame: frame, scale: scale)
+        let destinationLayer = makeWorkspaceLayer(destination, frame: frame, scale: scale)
         destinationLayer.isHidden = true
         self.sourceLayer?.removeFromSuperlayer()
         self.destinationLayer?.removeFromSuperlayer()
@@ -324,13 +316,10 @@ final class WorkspaceSwipePreview {
 }
 
 extension WorkspaceSwipePreview {
-    private func makeWorkspaceLayer(
-        _ items: [Item], monitor: Monitor, frame: CGRect, scale: CGFloat, image: CGImage
-    ) -> CALayer {
+    private func makeWorkspaceLayer(_ items: [Item], frame: CGRect, scale: CGFloat) -> CALayer {
         let layer = CALayer()
         layer.frame = CGRect(origin: .zero, size: frame.size)
         layer.masksToBounds = true
-        layer.addSublayer(makeWallpaperLayer(image, monitor: monitor, frame: frame))
         for item in items {
             guard let preview = capture.preview(for: item.handle) else { continue }
             let content = Content(
@@ -344,11 +333,12 @@ extension WorkspaceSwipePreview {
         return layer
     }
 
-    private func makeSourceSnapshotLayer(in sourceLayer: CALayer) -> CALayer {
+    private func makeSourceSnapshotLayer(in sourceLayer: CALayer, mask: CALayer) -> CALayer {
         let layer = CALayer()
         layer.frame = sourceLayer.bounds
         layer.contentsGravity = .resize
         layer.contents = sourceSnapshot
+        layer.mask = mask
         sourceLayer.addSublayer(layer)
         return layer
     }

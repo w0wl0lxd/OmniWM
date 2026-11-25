@@ -147,8 +147,7 @@ final class OverviewAnimator {
     func endTracking(timestamp: TimeInterval?) -> Double? {
         guard var gesture, !gesture.released else { return nil }
         if let timestamp, gesture.origin != nil {
-            gesture.tracker.push(delta: 0, timestamp: timestamp)
-            gesture.velocity = gesture.tracker.velocity()
+            gesture.velocity = gesture.tracker.velocity(atRelease: timestamp)
         } else {
             gesture.velocity = 0
         }

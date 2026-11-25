@@ -1832,6 +1832,28 @@ final class OverviewBehaviorTests: XCTestCase {
         XCTAssertEqual(activatedHandles, [selectedHandle])
     }
 
+    func testShortFlickOpensAcrossTheLiftFrameAndAHeldFlickDoesNot() throws {
+        for (liftDelay, opens) in [(0.016, true), (0.3, false)] {
+            let harness = try InteractiveOverviewHarness(fixture: makeRuntimeOverviewFixture(windowCount: 1))
+            let overview = harness.overview
+            XCTAssertTrue(overview.beginInteractiveTransition())
+            overview.updateInteractiveTransition(cumulativeUnits: 0, timestamp: 100)
+            overview.updateInteractiveTransition(cumulativeUnits: 2, timestamp: 100.008)
+            overview.updateInteractiveTransition(cumulativeUnits: 4, timestamp: 100.016)
+            harness.clock.time = 100.016 + liftDelay
+            overview.endInteractiveTransition(timestamp: harness.clock.time)
+
+            let transition = try XCTUnwrap(harness.installed.last)
+            XCTAssertEqual(transition.target, opens ? 1 : 0)
+            XCTAssertEqual(
+                transition.initialVelocity,
+                opens ? TrackpadGestureIntent.overviewProgress(units: 4) / (100.016 - 100) : 0,
+                accuracy: 1e-9
+            )
+            overview.completeCloseTransition(targetWindow: nil)
+        }
+    }
+
     func testUpwardFlickDuringCloseTrackReopens() throws {
         let harness = try InteractiveOverviewHarness(fixture: makeRuntimeOverviewFixture(windowCount: 1))
         let overview = harness.overview
@@ -1842,6 +1864,7 @@ final class OverviewBehaviorTests: XCTestCase {
         XCTAssertTrue(overview.beginInteractiveTransition())
         overview.updateInteractiveTransition(cumulativeUnits: 0, timestamp: 10)
         overview.updateInteractiveTransition(cumulativeUnits: -150, timestamp: 10.1)
+        overview.updateInteractiveTransition(cumulativeUnits: -150, timestamp: 10.28)
         overview.updateInteractiveTransition(cumulativeUnits: -120, timestamp: 10.3)
         XCTAssertEqual(overview.transitionProgress, 0.6)
         harness.clock.time = 10.32
@@ -1853,7 +1876,7 @@ final class OverviewBehaviorTests: XCTestCase {
         XCTAssertEqual(harness.installed.count, 2)
         XCTAssertEqual(transition.target, 1)
         XCTAssertEqual(transition.from, 0.6)
-        XCTAssertEqual(transition.initialVelocity, (0.6 - 0.5) / (10.32 - 10.3))
+        XCTAssertEqual(transition.initialVelocity, (0.6 - 0.5) / (10.3 - 10.28))
 
         try harness.completeLastTransition()
         guard case .open = overview.state else { return XCTFail("Expected the reopened spring to settle open") }
