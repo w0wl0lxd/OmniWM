@@ -1,7 +1,10 @@
 import importlib.util
+import os
 from pathlib import Path
 import re
+import subprocess
 import sys
+import tempfile
 import unittest
 
 
@@ -52,6 +55,20 @@ class IPCWireGeneratorTests(unittest.TestCase):
         for typ, cases in expected.items():
             self.assertIn("windowGather", cases, typ)
             self.assertEqual(re.findall(r"case let \.(\w+)\(payload\):", encoder_body(typ)), cases, typ)
+
+
+class IPCWireGeneratorToolingTests(unittest.TestCase):
+    def test_check_reports_missing_swiftformat_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tools:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "generate_ipc_wire.py"), "--check"],
+                env={**os.environ, "OMNIWM_DEV_TOOLS": tools},
+                capture_output=True,
+                text=True,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("swiftformat not found", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":

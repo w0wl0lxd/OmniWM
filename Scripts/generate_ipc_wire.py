@@ -227,8 +227,11 @@ def save_generated():
             name = f'IPCJSONWriter+Models{index:02}.swift'
             path = directory / name
             path.write_text(header + 'extension IPCJSONWriter {\n' + '\n\n'.join(functions) + '\n}\n')
-        tools = pathlib.Path(os.environ.get('OMNIWM_DEV_TOOLS') or root / '.cache/flake-tools')
-        subprocess.run([str(tools / 'bin/swiftformat'), str(directory), '--config', str(root / '.swiftformat')], cwd=root, check=True, capture_output=True)
+        tools = root / (os.environ.get('OMNIWM_DEV_TOOLS') or '.cache/flake-tools')
+        swiftformat = tools / 'bin/swiftformat'
+        if not swiftformat.is_file():
+            raise SystemExit(f'swiftformat not found at {swiftformat}; load the nix shell or run make setup-tools (or set OMNIWM_DEV_TOOLS)')
+        subprocess.run([str(swiftformat), str(directory), '--config', str(root / '.swiftformat')], cwd=root, check=True, capture_output=True)
         expected = {path.name: path.read_text() for path in sorted(directory.glob('*.swift'))}
     existing = {path.name: path for path in models.glob('IPCJSONWriter+Models*.swift')}
     failures = []
