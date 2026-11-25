@@ -228,7 +228,10 @@ def save_generated():
             path = directory / name
             path.write_text(header + 'extension IPCJSONWriter {\n' + '\n\n'.join(functions) + '\n}\n')
         tools = pathlib.Path(os.environ.get('OMNIWM_DEV_TOOLS') or root / '.cache/flake-tools')
-        subprocess.run([str(tools / 'bin/swiftformat'), str(directory), '--config', str(root / '.swiftformat')], cwd=root, check=True, capture_output=True)
+        swiftformat = tools / 'bin/swiftformat'
+        if not swiftformat.is_file():
+            raise SystemExit(f'swiftformat not found at {swiftformat}; run make setup or set OMNIWM_DEV_TOOLS')
+        subprocess.run([str(swiftformat), str(directory), '--config', str(root / '.swiftformat')], cwd=root, check=True, capture_output=True)
         expected = {path.name: path.read_text() for path in sorted(directory.glob('*.swift'))}
     existing = {path.name: path for path in models.glob('IPCJSONWriter+Models*.swift')}
     failures = []
