@@ -243,6 +243,7 @@ extension AXEventHandler {
     }
 
     func shouldDelayManagedReplacementDestroy(_ candidate: PreparedDestroy) -> Bool {
-        managedReplacementCorrelationPolicy(for: candidate.replacementMetadata) != nil
+        candidate.replacementMetadata.bundleId != KittyQuickAccessTerminal.bundleIdentifier
+            && managedReplacementCorrelationPolicy(for: candidate.replacementMetadata) != nil
     }
 }
