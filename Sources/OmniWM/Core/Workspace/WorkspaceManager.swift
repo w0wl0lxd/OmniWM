@@ -455,10 +455,11 @@ extension WorkspaceManager {
     func noteInvalidation(
         workspaceId: WorkspaceDescriptor.ID?,
         domains: InvalidationDomain,
+        runtimeDomains: InvalidationDomain? = nil,
         surfaceScope: SessionSurfaceInvalidationScope = .full
     ) {
         world.noteInvalidation(workspaceId: workspaceId, domains: domains)
-        onRuntimeInvalidation?(workspaceId, domains, surfaceScope)
+        onRuntimeInvalidation?(workspaceId, runtimeDomains ?? domains, surfaceScope)
     }
 
     func noteInvalidation(
