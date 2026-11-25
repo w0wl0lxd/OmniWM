@@ -159,10 +159,15 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
             _ = MouseEventHandler.annotatedMoveTapCallback(OpaquePointer(bitPattern: 1)!, .leftMouseDragged, event, nil)
         }
 
-        func release(_ token: WindowToken, at observed: CGRect, press: CGPoint? = nil) throws {
+        func release(
+            _ token: WindowToken,
+            at observed: CGRect,
+            press: CGPoint? = nil,
+            draggedTo: CGPoint? = nil
+        ) throws {
             let reported = ReportedFrame(controller.axManager.lastAppliedFrame(for: token.windowId))
             handler.nativeWindowFrameProvider = { _ in reported.frame }
-            try beginDrag(token, at: press)
+            try beginDrag(token, at: press, draggedTo: draggedTo)
             reported.frame = observed
             let entry = try entry(token)
             XCTAssertTrue(handler.handleNativeTitleBarDragFrameChanged(for: entry))
@@ -4241,7 +4246,11 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
             fixture.controller.layoutRefreshController.stopScrollAnimation(for: fixture.monitor.displayId)
 
             let widened = try fixture.frame(resized)
-            try fixture.release(resized, at: grownAlongTheStrip(widened, by: -300))
+            try fixture.release(
+                resized,
+                at: grownAlongTheStrip(widened, by: -300),
+                draggedTo: slideDragLocation(from: widened.center)
+            )
             XCTAssertEqual(
                 try fixture.frame(resized)[keyPath: span],
                 widened[keyPath: span] - 300,
