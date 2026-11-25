@@ -1483,6 +1483,32 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         XCTAssertTrue(fixture.preview.isWarming)
     }
 
+    func testStillDisplayWarmupRequestedUnderOverviewRunsAfterItCloses() async throws {
+        let (fixture, polls) = try deferredWarmupFixture()
+        let controller = fixture.controller
+        // Make Overview transitions synchronous without discarding the swipe capture under test.
+        controller.motionPolicy.onAnimationsEnabledChange = {}
+        controller.motionPolicy.animationsEnabled = false
+        controller.toggleOverview()
+        XCTAssertTrue(controller.isOverviewOpen())
+        controller.motionPolicy.animationsEnabled = true
+
+        fixture.applyEffectPlan()
+        XCTAssertNotNil(fixture.swipe.deferredWarms[fixture.monitor.id])
+        XCTAssertNil(fixture.swipe.warmTask)
+        XCTAssertFalse(fixture.preview.isWarming)
+
+        controller.motionPolicy.animationsEnabled = false
+        controller.windowActionHandler.dismissOverview()
+        XCTAssertFalse(controller.isOverviewOpen())
+        controller.motionPolicy.animationsEnabled = true
+        let resumed = try XCTUnwrap(fixture.swipe.warmTask)
+        await resumed.value
+
+        XCTAssertEqual(polls.durations.count, 1)
+        XCTAssertTrue(fixture.preview.isWarming)
+    }
+
     func testKeyboardFallbackLimitsTheStreamsItOpenedToTheirFirstFrame() async throws {
         let fixture = try previewFixture()
         let manager = fixture.controller.workspaceManager
