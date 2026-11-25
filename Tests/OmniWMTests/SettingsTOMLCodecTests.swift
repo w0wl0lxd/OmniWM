@@ -604,6 +604,34 @@ final class SettingsTOMLCodecTests: XCTestCase {
         XCTAssertTrue(rewritten.contains("size = 24.0"))
     }
 
+    func testPreservingEncodeKeepsAnUnknownHotkeyKeyWithItsIDWhenAnEarlierHotkeyIsMissing() throws {
+        let separator = "[[hotkeys]]"
+        let marker = "futureHotkeySetting = \"keep-by-id\""
+        func id(of section: String) -> String? {
+            let prefix = "id = \""
+            return section.split(separator: "\n")
+                .first { $0.hasPrefix(prefix) && $0.hasSuffix("\"") }
+                .map { String($0.dropFirst(prefix.count).dropLast()) }
+        }
+        var sections = String(decoding: try SettingsTOMLCodec.encode(.defaults()), as: UTF8.self)
+            .components(separatedBy: separator)
+        XCTAssertGreaterThan(sections.count, 7)
+        let markedID = try XCTUnwrap(id(of: sections[6]))
+        sections[6] = "\n\(marker)" + sections[6]
+        sections.remove(at: 1)
+        let previous = Data(sections.joined(separator: separator).utf8)
+
+        let export = try SettingsTOMLCodec.decode(previous)
+        let rewritten = String(
+            decoding: try SettingsTOMLCodec.encode(export, preservingUnknownKeysFrom: previous),
+            as: UTF8.self
+        )
+
+        let marked = rewritten.components(separatedBy: separator).dropFirst().filter { $0.contains(marker) }
+        XCTAssertEqual(marked.count, 1, rewritten)
+        XCTAssertEqual(marked.first.flatMap(id(of:)), markedID)
+    }
+
     func testPreservingEncodeKeepsCanonicalBytesWhenNoUnknownKeysExist() throws {
         let export = SettingsExport.defaults()
         let canonicalData = try SettingsTOMLCodec.encode(export)
