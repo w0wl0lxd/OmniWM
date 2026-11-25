@@ -272,29 +272,4 @@ extension IPCJSONWriter {
         try self.value(value.name)
         end(125)
     }
-
-    mutating func value(_ value: borrowing IPCCaptureRequest) throws {
-        switch value {
-        case let .start(profile):
-            begin(123)
-            var first = true
-            self.key("name", &first)
-            try self.value("start")
-            self.key("profile", &first)
-            try self.value(profile)
-            end(125)
-        case .stop:
-            begin(123)
-            var first = true
-            self.key("name", &first)
-            try self.value("stop")
-            end(125)
-        case .status:
-            begin(123)
-            var first = true
-            self.key("name", &first)
-            try self.value("status")
-            end(125)
-        }
-    }
 }

@@ -4,6 +4,31 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func value(_ value: borrowing IPCCaptureRequest) throws {
+        switch value {
+        case let .start(profile):
+            begin(123)
+            var first = true
+            self.key("name", &first)
+            try self.value("start")
+            self.key("profile", &first)
+            try self.value(profile)
+            end(125)
+        case .stop:
+            begin(123)
+            var first = true
+            self.key("name", &first)
+            try self.value("stop")
+            end(125)
+        case .status:
+            begin(123)
+            var first = true
+            self.key("name", &first)
+            try self.value("status")
+            end(125)
+        }
+    }
+
     mutating func fields0(_ value: borrowing IPCQuerySelectors, _ first: inout Bool) throws {
         if let fieldValue = value.app {
             self.key("app", &first)
@@ -233,34 +258,5 @@ extension IPCJSONWriter {
         self.key("name", &first)
         try self.value("move")
         end(125)
-    }
-
-    mutating func ruleRequestApply(_ target: borrowing IPCRuleApplyTarget) throws {
-        begin(123)
-        var first = true
-        self.key("arguments", &first)
-        begin(123)
-        var firstNested = true
-        self.key("target", &firstNested)
-        try self.value(target)
-        end(125)
-        self.key("name", &first)
-        try self.value("apply")
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing IPCRuleRequest) throws {
-        switch value {
-        case let .add(rule):
-            try ruleRequestAdd(rule)
-        case let .replace(id, rule):
-            try ruleRequestReplace(id, rule)
-        case let .remove(id):
-            try ruleRequestRemove(id)
-        case let .move(id, position):
-            try ruleRequestMove(id, position)
-        case let .apply(target):
-            try ruleRequestApply(target)
-        }
     }
 }
