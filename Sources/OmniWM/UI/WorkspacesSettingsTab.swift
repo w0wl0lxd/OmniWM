@@ -87,6 +87,13 @@ struct WorkspacesSettingsTab: View {
                 SettingsCaption(localized:
                     "A workspace shortcut or command palette entry for the workspace you are on returns to the previous workspace instead. omniwmctl is not affected."
                 )
+                Toggle(
+                    "Wrap Around at the First and Last Workspace",
+                    isOn: Bindable(settings.workspaces).wrapAround
+                )
+                SettingsCaption(localized:
+                    "Next and previous workspace shortcuts and omniwmctl commands continue from the last workspace to the first, and the reverse. Turn this off to stop at the ends."
+                )
             }
 
             Section {

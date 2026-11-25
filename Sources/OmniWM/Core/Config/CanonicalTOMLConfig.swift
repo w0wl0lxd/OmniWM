@@ -54,6 +54,7 @@ struct CanonicalTOMLConfig: Codable, Equatable {
         var pausePalettePasteDuringSecureInput: Bool?
         var language: String?
         var workspaceAutoBackAndForth: Bool?
+        var workspaceWrapAround: Bool?
     }
 
     struct Monitors: Codable, Equatable {
@@ -144,7 +145,8 @@ extension CanonicalTOMLConfig {
             slideWorkspaceSwitches: export.slideWorkspaceSwitches,
             pausePalettePasteDuringSecureInput: export.pausePalettePasteDuringSecureInput,
             language: export.language,
-            workspaceAutoBackAndForth: export.workspaceAutoBackAndForth
+            workspaceAutoBackAndForth: export.workspaceAutoBackAndForth,
+            workspaceWrapAround: export.workspaceWrapAround
         )
         focus = export.focus
         focus.edgeNavigationInterval = FocusSettings.normalizedEdgeNavigationInterval(focus.edgeNavigationInterval)
@@ -198,6 +200,7 @@ extension CanonicalTOMLConfig {
             windowSwitcher: windowSwitcher,
             keyboardModes: keyboardModes,
             workspaceAutoBackAndForth: general.workspaceAutoBackAndForth ?? false,
+            workspaceWrapAround: general.workspaceWrapAround ?? true,
             hotkeyBindings: hotkeys,
             systemHyperTrigger: general.systemHyperTrigger,
             hyperKeyModifiers: general.hyperKeyModifiers,

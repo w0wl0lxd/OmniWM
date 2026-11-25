@@ -5,6 +5,7 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 @testable import OmniWM
+import OmniWMIPC
 import XCTest
 
 @MainActor
@@ -39,6 +40,38 @@ final class WorkspaceSkipEmptyNavigationTests: XCTestCase {
         XCTAssertTrue(manager.setActiveWorkspace(fixture.workspaces[3], on: fixture.monitor.id))
 
         XCTAssertEqual(cycle(fixture, isNext: true, steps: 3), [0, 2, 0])
+    }
+
+    func testRelativeSwitchWrapsAtTheEndsByDefault() throws {
+        let fixture = try makeFixture(occupied: [0])
+        defer { fixture.controller.deadlineWheel.stop() }
+        let last = fixture.workspaces.count - 1
+
+        XCTAssertEqual(cycle(fixture, isNext: false, steps: 1), [last])
+        XCTAssertEqual(cycle(fixture, isNext: true, steps: 1), [0])
+    }
+
+    func testRelativeSwitchStopsAtTheEndsWhenWrapAroundIsOff() throws {
+        let fixture = try makeFixture(occupied: [0])
+        defer { fixture.controller.deadlineWheel.stop() }
+        fixture.controller.settings.workspaces.wrapAround = false
+        let last = fixture.workspaces.count - 1
+
+        XCTAssertEqual(cycle(fixture, isNext: false, steps: 1), [0])
+        XCTAssertEqual(cycle(fixture, isNext: true, steps: last + 1), Array(1 ... last) + [last])
+        XCTAssertEqual(cycle(fixture, isNext: false, steps: last + 1), Array((0 ..< last).reversed()) + [0])
+    }
+
+    func testIPCSwitchToNextAtTheLastWorkspaceReportsNoChangeWhenWrapAroundIsOff() throws {
+        let fixture = try makeFixture(occupied: [0])
+        defer { fixture.controller.deadlineWheel.stop() }
+        fixture.controller.settings.workspaces.wrapAround = false
+        let router = IPCCommandRouter(controller: fixture.controller, sessionToken: "test")
+        let last = fixture.workspaces.count - 1
+
+        XCTAssertEqual(cycle(fixture, isNext: true, steps: last), Array(1 ... last))
+        XCTAssertEqual(router.handle(.workspace(.next)), .noChange)
+        XCTAssertEqual(router.handle(.workspace(.previous)), .executed)
     }
 
     func testSkipEmptyReturnsNilWhenOnlyCurrentWorkspaceIsOccupied() throws {
@@ -87,9 +120,11 @@ final class WorkspaceSkipEmptyNavigationTests: XCTestCase {
         )
         let manager = controller.workspaceManager
         manager.applyMonitorConfigurationChange([monitor])
-        let workspaces = try (1 ... 5).map {
-            try XCTUnwrap(manager.workspaceId(for: String($0), createIfMissing: true))
+        for name in 1 ... 5 {
+            _ = try XCTUnwrap(manager.workspaceId(for: String(name), createIfMissing: true))
         }
+        let workspaces = manager.workspaces(on: monitor.id).map(\.id)
+        XCTAssertGreaterThanOrEqual(workspaces.count, 5)
         for index in occupied.sorted() {
             let pid = pid_t(8_001 + index)
             let windowId = 8_101 + index
