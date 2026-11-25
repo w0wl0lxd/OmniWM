@@ -197,6 +197,8 @@ enum CLIRenderer {
             return CLIStateRenderer.formattedDisplays(payload, format: format)
         case let .rules(payload):
             return CLIStateRenderer.formattedRules(payload, format: format)
+        case let .unmanagedWindows(payload):
+            return formattedUnmanagedWindows(payload, format: format)
         case let .ruleActions(payload):
             return formattedRuleActions(payload, format: format)
         case let .queries(payload):
@@ -268,6 +270,30 @@ extension CLIRenderer {
 
         return CLITableRenderer.formatRows(
             headers: ["NAME", "SUMMARY", "SELECTORS", "FIELDS"],
+            rows: rows,
+            format: format
+        )
+    }
+
+    private static func formattedUnmanagedWindows(
+        _ payload: IPCUnmanagedWindowsQueryResult,
+        format: CLIOutputFormat
+    ) -> String {
+        let rows = payload.windows.map { window in
+            [
+                String(window.pid),
+                String(window.windowId),
+                window.app?.name ?? "-",
+                String(window.level),
+                window.role ?? "-",
+                window.subrole ?? "-",
+                window.disposition.rawValue,
+                window.reason
+            ]
+        }
+
+        return CLITableRenderer.formatRows(
+            headers: ["PID", "WINDOW", "APP", "LEVEL", "ROLE", "SUBROLE", "DISPOSITION", "REASON"],
             rows: rows,
             format: format
         )

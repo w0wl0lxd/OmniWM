@@ -13,6 +13,7 @@ public enum IPCResultKind: String, Codable, Equatable, Sendable {
     case apps
     case focusedWindow = "focused-window"
     case windows
+    case unmanagedWindows = "unmanaged-windows"
     case workspaces
     case displays
     case rules
@@ -69,6 +70,7 @@ public struct IPCResult: Codable, Equatable, Sendable {
         case apps(IPCAppsQueryResult)
         case focusedWindow(IPCFocusedWindowQueryResult)
         case windows(IPCWindowsQueryResult)
+        case unmanagedWindows(IPCUnmanagedWindowsQueryResult)
         case workspaces(IPCWorkspacesQueryResult)
         case displays(IPCDisplaysQueryResult)
         case rules(IPCRulesQueryResult)
@@ -138,6 +140,10 @@ public struct IPCResult: Codable, Equatable, Sendable {
 
     public init(displays: IPCDisplaysQueryResult) {
         self.init(kind: .displays, payload: .displays(displays))
+    }
+
+    public init(unmanagedWindows: IPCUnmanagedWindowsQueryResult) {
+        self.init(kind: .unmanagedWindows, payload: .unmanagedWindows(unmanagedWindows))
     }
 
     public init(rules: IPCRulesQueryResult) {
@@ -210,6 +216,8 @@ public struct IPCResult: Codable, Equatable, Sendable {
             payload = .focusedWindow(try container.decode(IPCFocusedWindowQueryResult.self, forKey: .payload))
         case .windows:
             payload = .windows(try container.decode(IPCWindowsQueryResult.self, forKey: .payload))
+        case .unmanagedWindows:
+            payload = .unmanagedWindows(try container.decode(IPCUnmanagedWindowsQueryResult.self, forKey: .payload))
         case .workspaces:
             payload = .workspaces(try container.decode(IPCWorkspacesQueryResult.self, forKey: .payload))
         case .displays:
@@ -261,6 +269,8 @@ public struct IPCResult: Codable, Equatable, Sendable {
         case let .focusedWindow(payload):
             try container.encode(payload, forKey: .payload)
         case let .windows(payload):
+            try container.encode(payload, forKey: .payload)
+        case let .unmanagedWindows(payload):
             try container.encode(payload, forKey: .payload)
         case let .workspaces(payload):
             try container.encode(payload, forKey: .payload)

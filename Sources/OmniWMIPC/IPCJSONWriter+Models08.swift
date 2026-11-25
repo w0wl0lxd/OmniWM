@@ -4,6 +4,24 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func value(_ value: borrowing IPCShellWidget) throws {
+        begin(123)
+        var first = true
+        if let fieldValue = value.error {
+            self.key("error", &first)
+            try self.value(fieldValue)
+        }
+        self.key("name", &first)
+        try self.value(value.name)
+        self.key("placements", &first)
+        try self.value(value.placements)
+        self.key("source", &first)
+        try self.value(value.source)
+        self.key("state", &first)
+        try self.value(value.state)
+        end(125)
+    }
+
     mutating func value(_ value: borrowing [IPCShellWidget]) throws {
         begin(91)
         var first = true
@@ -48,6 +66,8 @@ extension IPCJSONWriter {
         case let .focusedWindow(payload):
             try self.value(payload)
         case let .windows(payload):
+            try self.value(payload)
+        case let .unmanagedWindows(payload):
             try self.value(payload)
         case let .workspaces(payload):
             try self.value(payload)
@@ -212,40 +232,6 @@ extension IPCJSONWriter {
              .consumeOrExpelRight,
              .consumeIntoColumn,
              .expelFromColumn:
-            break
-        }
-    }
-
-    mutating func arguments(_ value: borrowing IPCWorkspaceCommand, _ first: inout Bool) throws {
-        switch value {
-        case let .switchTo(workspaceNumber):
-            try argument("workspaceNumber", workspaceNumber, &first)
-        case let .switchAnywhere(workspaceNumber):
-            try argument("workspaceNumber", workspaceNumber, &first)
-        case let .switchSlot(slotNumber):
-            try argument("slotNumber", slotNumber, &first)
-        case let .moveTo(workspaceNumber):
-            try argument("workspaceNumber", workspaceNumber, &first)
-        case let .moveToOnMonitor(workspaceNumber, direction):
-            self.key("arguments", &first)
-            begin(123)
-            var argumentFirst = true
-            self.key("direction", &argumentFirst)
-            try self.value(direction)
-            self.key("workspaceNumber", &argumentFirst)
-            try self.value(workspaceNumber)
-            end(125)
-        case let .moveToSlot(slotNumber):
-            try argument("slotNumber", slotNumber, &first)
-        case let .moveToMonitor(direction):
-            try argument("direction", direction, &first)
-        case .next,
-             .previous,
-             .backAndForth,
-             .moveUp,
-             .moveDown,
-             .moveToNextMonitor,
-             .moveToPreviousMonitor:
             break
         }
     }

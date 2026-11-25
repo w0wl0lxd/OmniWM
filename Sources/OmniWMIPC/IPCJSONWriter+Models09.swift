@@ -4,6 +4,40 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func arguments(_ value: borrowing IPCWorkspaceCommand, _ first: inout Bool) throws {
+        switch value {
+        case let .switchTo(workspaceNumber):
+            try argument("workspaceNumber", workspaceNumber, &first)
+        case let .switchAnywhere(workspaceNumber):
+            try argument("workspaceNumber", workspaceNumber, &first)
+        case let .switchSlot(slotNumber):
+            try argument("slotNumber", slotNumber, &first)
+        case let .moveTo(workspaceNumber):
+            try argument("workspaceNumber", workspaceNumber, &first)
+        case let .moveToOnMonitor(workspaceNumber, direction):
+            self.key("arguments", &first)
+            begin(123)
+            var argumentFirst = true
+            self.key("direction", &argumentFirst)
+            try self.value(direction)
+            self.key("workspaceNumber", &argumentFirst)
+            try self.value(workspaceNumber)
+            end(125)
+        case let .moveToSlot(slotNumber):
+            try argument("slotNumber", slotNumber, &first)
+        case let .moveToMonitor(direction):
+            try argument("direction", direction, &first)
+        case .next,
+             .previous,
+             .backAndForth,
+             .moveUp,
+             .moveDown,
+             .moveToNextMonitor,
+             .moveToPreviousMonitor:
+            break
+        }
+    }
+
     mutating func arguments(_ value: borrowing IPCColumnCommand, _ first: inout Bool) throws {
         switch value {
         case let .move(direction):

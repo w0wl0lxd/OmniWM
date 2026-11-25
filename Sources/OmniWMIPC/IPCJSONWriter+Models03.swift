@@ -73,6 +73,61 @@ extension IPCJSONWriter {
         end(125)
     }
 
+    mutating func value(_ value: borrowing IPCUnmanagedWindowDisposition) throws {
+        try self.value(value.rawValue)
+    }
+
+    mutating func value(_ value: borrowing IPCUnmanagedWindowSnapshot) throws {
+        begin(123)
+        var first = true
+        if let fieldValue = value.app {
+            self.key("app", &first)
+            try self.value(fieldValue)
+        }
+        self.key("disposition", &first)
+        try self.value(value.disposition)
+        self.key("frame", &first)
+        try self.value(value.frame)
+        self.key("level", &first)
+        try self.value(value.level)
+        self.key("pid", &first)
+        try self.value(value.pid)
+        self.key("reason", &first)
+        try self.value(value.reason)
+        if let fieldValue = value.role {
+            self.key("role", &first)
+            try self.value(fieldValue)
+        }
+        if let fieldValue = value.subrole {
+            self.key("subrole", &first)
+            try self.value(fieldValue)
+        }
+        self.key("windowId", &first)
+        try self.value(value.windowId)
+        end(125)
+    }
+
+    mutating func value(_ value: borrowing [IPCUnmanagedWindowSnapshot]) throws {
+        begin(91)
+        var first = true
+        let span = value.span
+        var index = 0
+        while index < span.count {
+            item(&first)
+            try self.value(span[index])
+            index += 1
+        }
+        end(93)
+    }
+
+    mutating func value(_ value: borrowing IPCUnmanagedWindowsQueryResult) throws {
+        begin(123)
+        var first = true
+        self.key("windows", &first)
+        try self.value(value.windows)
+        end(125)
+    }
+
     mutating func value(_ value: borrowing IPCColumnDisplayMode) throws {
         try self.value(value.rawValue)
     }
@@ -204,47 +259,6 @@ extension IPCJSONWriter {
         var first = true
         self.key("workspaces", &first)
         try self.value(value.workspaces)
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing [IPCRect]) throws {
-        begin(91)
-        var first = true
-        let span = value.span
-        var index = 0
-        while index < span.count {
-            item(&first)
-            try self.value(span[index])
-            index += 1
-        }
-        end(93)
-    }
-
-    mutating func value(_ value: borrowing IPCSpan) throws {
-        begin(123)
-        var first = true
-        self.key("end", &first)
-        try self.value(value.end)
-        self.key("start", &first)
-        try self.value(value.start)
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing IPCDisplayOrientation) throws {
-        try self.value(value.rawValue)
-    }
-
-    mutating func value(_ value: borrowing IPCInsets) throws {
-        begin(123)
-        var first = true
-        self.key("bottom", &first)
-        try self.value(value.bottom)
-        self.key("left", &first)
-        try self.value(value.left)
-        self.key("right", &first)
-        try self.value(value.right)
-        self.key("top", &first)
-        try self.value(value.top)
         end(125)
     }
 }

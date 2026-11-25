@@ -156,6 +156,8 @@ extension IPCResult {
             self.init(focusedWindow: queryRouter.focusedWindowResult())
         case .windows:
             self.init(windows: queryRouter.windowsResult(query))
+        case .unmanagedWindows:
+            self.init(unmanagedWindows: queryRouter.unmanagedWindowsResult())
         case .workspaces:
             self.init(workspaces: queryRouter.workspacesResult(query))
         case .displays:

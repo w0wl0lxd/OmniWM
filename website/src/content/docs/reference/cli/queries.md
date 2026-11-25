@@ -98,6 +98,7 @@ The three workspace flags answer different questions. `is-focused` marks the wor
 | `metrics` | — | — | Always-on runtime metrics: AX frame-write attempts and whole-attempt wall time (the setter plus its ordering/verification reads; enhanced-UI batch work and the retry element refresh are not counted) as since-launch totals plus live rows per app AX context, display tick timing, layout build counts, and process energy/CPU. Populated without an active `capture` session |
 | `focused-window` | — | — | Focused managed window snapshot |
 | `windows` | `--window`, `--workspace`, `--display`, `--focused`, `--visible`, `--floating`, `--scratchpad`, `--app`, `--bundle-id` | window fields | Managed windows |
+| `unmanaged-windows` | — | — | On-screen windows OmniWM does not manage, with `pid`, `windowId`, `app`, `frame`, `level`, `role`, `subrole`, `disposition` and `reason`; no titles |
 | `workspaces` | `--workspace`, `--display`, `--current`, `--visible`, `--focused` | workspace fields | Configured workspaces with occupancy |
 | `displays` | `--display`, `--main`, `--current` | display fields | Connected displays with geometry |
 | `rules` | — | — | Persisted user window rules |
@@ -107,6 +108,18 @@ The three workspace flags answer different questions. `is-focused` marks the wor
 | `subscriptions` | — | — | Subscription registry |
 | `capabilities` | — | — | Full protocol capabilities, including `windowMarkActions`, `windowGatherActions`, and `shellActions` |
 | `shell-widgets` | — | — | Luau shell widgets with their `state` (`loading`, `loaded`, `failed` or `fallback`), `placements`, `source` file and any `error`, plus `problems` found in `shell.toml` and theme files |
+
+`unmanaged-windows` lists windows that OmniWM does not track and never returns titles. It reads the window-server list that OmniWM's full rescan uses: only top-level windows (windows with a parent window are not listed) at the normal, floating or status levels, ordered in and carrying the document tag or the floating-and-modal tags. OmniWM's own windows are left out, and so is any window OmniWM tracks, whichever app owns it. Windows on a native Space that is not active may be missing. `frame` uses the same bottom-left coordinates as `query windows`.
+
+`level` is the window-server level (0 normal, 3 floating, 8 status). `role` and `subrole` are the accessibility values the rules saw; both are omitted when no accessibility window matched. A popup or panel usually has a different `subrole` or `level` from a standard document window.
+
+`disposition` is `unmanaged`, `undecided`, `floating` or `managed`. The last two mean the window passes the rules but is not tracked. `reason` is one of:
+
+- Admission state, checked first: `quarantined` (frames were refused), `retryExhausted`, or the pending reason `window_info_missing`, `ax_window_missing`, `facts_deferred`, `window_server_evidence_missing` or `degenerate_geometry`.
+- Accessibility reads: `accessibilityReadFailed` (the app did not answer within one second in total) or `noAccessibilityWindow` (the app answered and has no matching window).
+- The rule decision: `manualOverride`, `userRule`, a built-in rule (`externalSurface`, `unprovenIndependentRoot`), a deferred reason (`attributeFetchFailed`, `independentRootEvidenceMissing`, `requiredTitleMissing`, `windowServerEvidenceMissing`), or an accessibility heuristic (`accessoryWithoutClose`, `noButtonsOnNonStandardSubrole`, `nonStandardSubrole`, `missingFullscreenButton`, `disabledFullscreenButton`, or `heuristic`).
+
+The rule decision is evaluated when you run the query, so it can differ from what admission decided when the window opened. The query reads accessibility once per app and runs on OmniWM's main thread, so it can pause OmniWM for up to a second when an app is unresponsive.
 
 `commands` and `capabilities` include the `window mark` descriptors. List live marks with [`omniwmctl window mark list`](/reference/cli/actions/#window-marks).
 

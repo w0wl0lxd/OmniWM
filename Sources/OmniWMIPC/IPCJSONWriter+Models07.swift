@@ -4,6 +4,27 @@
 import Foundation
 
 extension IPCJSONWriter {
+    mutating func value(_ value: borrowing [IPCSubscriptionChannel]) throws {
+        begin(91)
+        var first = true
+        let span = value.span
+        var index = 0
+        while index < span.count {
+            item(&first)
+            try self.value(span[index])
+            index += 1
+        }
+        end(93)
+    }
+
+    mutating func value(_ value: borrowing IPCSubscribeResult) throws {
+        begin(123)
+        var first = true
+        self.key("channels", &first)
+        try self.value(value.channels)
+        end(125)
+    }
+
     mutating func value(_ value: borrowing IPCWindowMarkEntry) throws {
         begin(123)
         var first = true
@@ -234,24 +255,6 @@ extension IPCJSONWriter {
         }
         self.key("traceCaptureActive", &first)
         try self.value(value.traceCaptureActive)
-        end(125)
-    }
-
-    mutating func value(_ value: borrowing IPCShellWidget) throws {
-        begin(123)
-        var first = true
-        if let fieldValue = value.error {
-            self.key("error", &first)
-            try self.value(fieldValue)
-        }
-        self.key("name", &first)
-        try self.value(value.name)
-        self.key("placements", &first)
-        try self.value(value.placements)
-        self.key("source", &first)
-        try self.value(value.source)
-        self.key("state", &first)
-        try self.value(value.state)
         end(125)
     }
 }
