@@ -14,6 +14,8 @@ public enum IPCWorkspaceCommandName: String, CaseIterable, Hashable, Sendable {
     case moveToOnMonitor = "move-to-workspace-on-monitor"
     case moveToSlot = "move-to-workspace-slot"
     case moveToMonitor = "move-to-monitor"
+    case moveToNextMonitor = "move-to-monitor-next"
+    case moveToPreviousMonitor = "move-to-monitor-previous"
 }
 
 public enum IPCWorkspaceCommand: Equatable, Sendable {
@@ -29,6 +31,8 @@ public enum IPCWorkspaceCommand: Equatable, Sendable {
     case moveToOnMonitor(workspaceNumber: Int, direction: IPCDirection)
     case moveToSlot(slotNumber: Int)
     case moveToMonitor(direction: IPCDirection)
+    case moveToNextMonitor
+    case moveToPreviousMonitor
 
     public var name: IPCWorkspaceCommandName {
         switch self {
@@ -56,6 +60,10 @@ public enum IPCWorkspaceCommand: Equatable, Sendable {
             .moveToSlot
         case .moveToMonitor:
             .moveToMonitor
+        case .moveToNextMonitor:
+            .moveToNextMonitor
+        case .moveToPreviousMonitor:
+            .moveToPreviousMonitor
         }
     }
 
@@ -86,6 +94,10 @@ public enum IPCWorkspaceCommand: Equatable, Sendable {
             self = try .moveToSlot(slotNumber: arguments.integer(.slotNumber))
         case .moveToMonitor:
             self = try .moveToMonitor(direction: arguments.direction())
+        case .moveToNextMonitor:
+            self = try arguments.requireNoArguments(.moveToNextMonitor)
+        case .moveToPreviousMonitor:
+            self = try arguments.requireNoArguments(.moveToPreviousMonitor)
         }
     }
 
@@ -109,7 +121,9 @@ public enum IPCWorkspaceCommand: Equatable, Sendable {
              .previous,
              .backAndForth,
              .moveUp,
-             .moveDown:
+             .moveDown,
+             .moveToNextMonitor,
+             .moveToPreviousMonitor:
             break
         }
     }

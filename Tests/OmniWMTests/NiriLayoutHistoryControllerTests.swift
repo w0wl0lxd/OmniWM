@@ -237,8 +237,8 @@ final class NiriLayoutHistoryControllerTests: XCTestCase {
     func testMovesToAnotherWorkspaceOrDisplayAreRecorded() {
         for command: HotkeyCommand in [
             .workspace(.moveTo(1)), .workspace(.moveUp), .workspace(.moveDown), .workspace(.moveToSlot(1)),
-            .workspace(.moveToMonitor(.right)), .column(.moveToWorkspace(1)), .column(.moveToWorkspaceUp),
-            .column(.moveToWorkspaceDown)
+            .workspace(.moveToMonitor(.right)), .workspace(.moveToNextMonitor), .workspace(.moveToPreviousMonitor),
+            .column(.moveToWorkspace(1)), .column(.moveToWorkspaceUp), .column(.moveToWorkspaceDown)
         ] {
             XCTAssertEqual(CommandHandler.layoutChangeCoverage(of: command), .everyNiriWorkspace, "\(command)")
         }

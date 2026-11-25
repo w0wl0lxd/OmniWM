@@ -73,6 +73,37 @@ final class WorkspaceMonitorHotkeyCommandTests: XCTestCase {
         XCTAssertTrue(SettingsTOMLMigration.hotkeyIDsAddedInVersionTwo.contains("moveToWorkspaceSlot.1"))
     }
 
+    func testInOrderWindowMoveActionsAreRegistered() throws {
+        let cases: [(action: WorkspaceAction, id: String, title: String, ipc: IPCWorkspaceCommandName)] = [
+            (
+                .moveToNextMonitor,
+                "moveWindowToMonitor.next",
+                "Move Focused Window to Next Monitor in Order",
+                .moveToNextMonitor
+            ),
+            (
+                .moveToPreviousMonitor,
+                "moveWindowToMonitor.previous",
+                "Move Focused Window to Previous Monitor in Order",
+                .moveToPreviousMonitor
+            )
+        ]
+
+        for entry in cases {
+            let command = HotkeyCommand.workspace(entry.action)
+            let spec = try XCTUnwrap(ActionCatalog.spec(for: command))
+
+            XCTAssertEqual(spec.id, entry.id)
+            XCTAssertEqual(spec.title, entry.title)
+            XCTAssertEqual(spec.category, .monitor)
+            XCTAssertEqual(spec.layoutCompatibility, .shared)
+            XCTAssertEqual(spec.defaultBinding, .unassigned)
+            XCTAssertEqual(spec.ipcCommandName, .workspace(entry.ipc))
+            XCTAssertNotNil(spec.ipcDescriptor)
+            XCTAssertEqual(HotkeyBindingRegistry.command(for: entry.id), command)
+        }
+    }
+
     func testDirectionalWindowMoveActionsAreRegistered() throws {
         let cases: [(direction: Direction, id: String, title: String)] = [
             (.left, "moveWindowToMonitor.left", "Move Focused Window to Monitor on Left"),

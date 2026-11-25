@@ -15,6 +15,16 @@ enum Direction: String, Codable {
         }
     }
 
+    init(travelingFrom source: Monitor, to target: Monitor) {
+        let dx = target.frame.center.x - source.frame.center.x
+        let dy = target.frame.center.y - source.frame.center.y
+        if abs(dx) >= abs(dy) {
+            self = dx < 0 ? .left : .right
+        } else {
+            self = dy < 0 ? .down : .up
+        }
+    }
+
     func primaryStep(for orientation: Monitor.Orientation) -> Int? {
         switch orientation {
         case .horizontal:

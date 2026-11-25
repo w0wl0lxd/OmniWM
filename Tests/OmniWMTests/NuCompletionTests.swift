@@ -88,7 +88,7 @@ final class NuCompletionTests: XCTestCase {
             ("omniwmctl command scratchpad ", ["assign", "toggle"]),
             ("omniwmctl command scratchpad assign ", IPCScratchpadSlots.range.map(String.init)),
             ("omniwmctl command scratchpad toggle ", IPCScratchpadSlots.range.map(String.init)),
-            ("omniwmctl command move-to-monitor ", ["left", "right", "up", "down"]),
+            ("omniwmctl command move-to-monitor ", ["left", "right", "up", "down", "next", "prev"]),
             ("omniwmctl command resize ", ["horizontal", "vertical"]),
             ("omniwmctl command resize horizontal ", ["grow", "shrink"]),
             ("omniwmctl capture start ", ["trace", "performance"]),

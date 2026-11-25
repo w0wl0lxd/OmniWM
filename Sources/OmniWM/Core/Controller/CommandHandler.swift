@@ -357,6 +357,8 @@ extension CommandHandler {
                  .moveUp,
                  .moveDown,
                  .moveToMonitor,
+                 .moveToNextMonitor,
+                 .moveToPreviousMonitor,
                  .moveToSlot: .everyNiriWorkspace
             default: nil
             }

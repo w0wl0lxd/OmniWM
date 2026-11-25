@@ -134,9 +134,11 @@ Workspace IDs are global, so `switch-workspace 3` targets workspace `3` wherever
 | `command focus-monitor next` | — | shared | Move focus to the next monitor |
 | `command focus-monitor last` | — | shared | Move focus back to the previous monitor |
 | `command move-to-monitor` | `<left\|right\|up\|down>` | shared | Move the focused window to the active workspace on an adjacent monitor |
+| `command move-to-monitor next` | — | shared | **Unreleased:** available when building from `main`. Move the focused window to the active workspace on the next monitor in order |
+| `command move-to-monitor prev` | — | shared | **Unreleased:** available when building from `main`. Move the focused window to the active workspace on the previous monitor in order |
 | `command swap-workspace-with-monitor` | `<left\|right\|up\|down>` | shared | Swap active workspace with the workspace on an adjacent monitor |
 
-`command move-to-monitor` does not wrap when no monitor exists in the requested direction. It honors **Follow Window to Monitor** and operates independently of **Move Window Across Monitor at Edge**.
+`command move-to-monitor` does not wrap when no monitor exists in the requested direction. `command move-to-monitor next` and `prev` follow the same monitor order as `command focus-monitor next` and `prev`, wrap from the last monitor to the first, and report `not_found` with a single monitor. All three honor **Follow Window to Monitor** and operate independently of **Move Window Across Monitor at Edge**.
 
 ### Container and Column Operations
 

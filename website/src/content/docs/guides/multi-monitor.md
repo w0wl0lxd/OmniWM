@@ -35,7 +35,7 @@ Layout behavior follows each display rather than one global setting: monitors us
 Three settings shape how focus and windows travel between displays:
 
 - **Focus Across Monitor at Edge** (`focus.crossesMonitorAtEdge`) lets directional focus continue to the adjacent routed display when it reaches a layout edge. It is off by default.
-- **Move Window Across Monitor at Edge** sends a window beyond a workspace edge to the adjacent routed display and always follows it. The dedicated `Move Window to Left / Right / Up / Down Monitor` actions work independently of this setting: they send the focused window directly to the current workspace on the adjacent routed display and do not wrap when no monitor exists in that direction.
+- **Move Window Across Monitor at Edge** sends a window beyond a workspace edge to the adjacent routed display and always follows it. The dedicated `Move Window to Left / Right / Up / Down Monitor` actions work independently of this setting: they send the focused window directly to the current workspace on the adjacent routed display and do not wrap when no monitor exists in that direction. **Unreleased:** available when building from `main`, `Move Focused Window to Next / Previous Monitor in Order` (unassigned by default) follows the monitor order of the focus actions, wraps from the last display to the first, and toggles a window between two displays with one key.
 - **Follow Window to Monitor** controls whether focus follows ordinary window or column transfers to another workspace, including the dedicated monitor-move actions. When it is off, those transfers leave you in the source workspace; edge-crossing moves always follow.
 
 ## Monitor roles
