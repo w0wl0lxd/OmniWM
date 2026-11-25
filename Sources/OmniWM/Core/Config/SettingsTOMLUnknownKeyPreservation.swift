@@ -52,8 +52,7 @@ extension TOMLNode {
     ) -> [String] {
         raw.enumerated().flatMap { index, rawElement -> [String] in
             guard case let .table(rawTable) = rawElement,
-                  index < known.count,
-                  case let .table(knownTable) = known[index]
+                  let knownTable = knownTable(for: rawTable, at: index, in: known)
             else { return [] }
             return unknownKeyPaths(
                 raw: rawTable,
@@ -111,8 +110,7 @@ extension TOMLNode {
         var ownerCounts: [Int: Int] = [:]
         for index in oldArray.indices {
             guard case let .table(oldTable) = oldArray[index],
-                  index < knownArray.count,
-                  case let .table(knownTable) = knownArray[index]
+                  let knownTable = knownTable(for: oldTable, at: index, in: knownArray)
             else { continue }
             let match = destinationMatch(
                 for: oldTable,
@@ -129,8 +127,7 @@ extension TOMLNode {
         var result = mergedArray
         for index in oldArray.indices {
             guard case let .table(oldTable) = oldArray[index],
-                  index < knownArray.count,
-                  case let .table(knownTable) = knownArray[index]
+                  let knownTable = knownTable(for: oldTable, at: index, in: knownArray)
             else { continue }
             let elementPath = "\(path)[\(index)]"
             guard !unknownKeyPaths(raw: oldTable, known: knownTable, prefix: elementPath).isEmpty else { continue }
@@ -151,6 +148,23 @@ extension TOMLNode {
             result[destinationIndex] = .table(updatedTable)
         }
         return result
+    }
+
+    // Rows the old file lacks, such as hotkeys added since, shift the indices, so an id wins.
+    private static func knownTable(
+        for oldTable: [String: TOMLNode],
+        at index: Int,
+        in knownArray: [TOMLNode]
+    ) -> [String: TOMLNode]? {
+        if case let .string(id) = oldTable["id"] {
+            let matches = matchingIndices(in: knownArray) { candidate in
+                guard case let .string(candidateID) = candidate["id"] else { return false }
+                return canonicalID(candidateID) == canonicalID(id)
+            }
+            if matches.count == 1, case let .table(table) = knownArray[matches[0]] { return table }
+        }
+        guard index < knownArray.count, case let .table(table) = knownArray[index] else { return nil }
+        return table
     }
 
     private static func destinationMatch(
