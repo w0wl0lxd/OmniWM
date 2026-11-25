@@ -32,6 +32,7 @@ extension WorkspaceManager {
             noteInvalidation(for: event)
         }
         noteAuxiliaryFocusInvalidationIfNeeded(for: event, previousFocus: previousFocus, plan: txn.plan)
+        noteLastNonOwnedFocusOwner()
         if let viewportWorkspaceId {
             noteViewportInvalidationIfNeeded(
                 for: viewportWorkspaceId,
@@ -48,6 +49,20 @@ extension WorkspaceManager {
             }
         }
         return txn
+    }
+
+    private func noteLastNonOwnedFocusOwner() {
+        let owner = focusSessionSnapshot.nativeFocusOwner
+        switch owner {
+        case let .managed(token):
+            guard token.pid != getpid() else { return }
+        case let .external(identity):
+            guard let pid = identity.pid, pid != getpid() else { return }
+        case .ownedSurface,
+             .none:
+            return
+        }
+        lastNonOwnedFocusOwner = owner
     }
 
     private func resolvedRestorePlan(

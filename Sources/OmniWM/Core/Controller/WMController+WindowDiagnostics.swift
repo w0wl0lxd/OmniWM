@@ -77,8 +77,36 @@ extension WMController {
         return makeWindowDecisionDebugSnapshot(from: evaluation)
     }
 
+    func inspectorTargetWindowToken() -> WindowToken? {
+        let ownPid = getpid()
+        if let token = liveLastNonOwnedFocusToken(), token.pid != ownPid { return token }
+        let history = workspaceManager.focusSessionSnapshot.windowFocusHistory
+        if let token = history.first(where: { $0.pid != ownPid && workspaceManager.entry(for: $0) != nil }) {
+            return token
+        }
+        guard let token = focusedOrFrontmostWindowTokenForAutomation(), token.pid != ownPid else { return nil }
+        return token
+    }
+
+    private func liveLastNonOwnedFocusToken() -> WindowToken? {
+        switch workspaceManager.lastNonOwnedFocusOwner {
+        case let .managed(token):
+            return workspaceManager.entry(for: token) != nil ? token : nil
+        case let .external(identity):
+            if let token = identity.exactToken,
+               axEventHandler.windowInfoProvider(UInt32(token.windowId))?.pid == token.pid
+            {
+                return token
+            }
+            return identity.pid.flatMap { axEventHandler.focusedWindowToken(for: $0) }
+        case .ownedSurface,
+             .none:
+            return nil
+        }
+    }
+
     func focusedWindowDecisionDebugSnapshot() -> WindowDecisionDebugSnapshot? {
-        let token = focusedOrFrontmostWindowTokenForAutomation()
+        let token = inspectorTargetWindowToken()
         guard let token else { return nil }
         return windowDecisionDebugSnapshot(for: token)
     }
