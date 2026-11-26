@@ -1549,13 +1549,15 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
     }
 
     func testColumnFlickTravelDoesNotDependOnTheLiftFrame() throws {
-        for frames in 1 ... 4 {
+        for frames in 1 ... 12 {
             let immediate = try columnFlickTravel(frames: frames, liftDelay: 0)
-            let delayed = try columnFlickTravel(frames: frames, liftDelay: 0.024)
+            for liftDelay in [0.024, 0.048, 0.064] {
+                let delayed = try columnFlickTravel(frames: frames, liftDelay: liftDelay)
+                XCTAssertEqual(delayed, immediate, "\(frames) frames, \(liftDelay) s")
+            }
             let held = try columnFlickTravel(frames: frames, liftDelay: 0.2)
 
-            XCTAssertEqual(delayed, immediate, "\(frames) frames")
-            XCTAssertGreaterThan(delayed, 10 * held, "\(frames) frames")
+            XCTAssertGreaterThan(immediate, 10 * held, "\(frames) frames")
             XCTAssertGreaterThan(held, 0, "\(frames) frames")
         }
     }

@@ -61,8 +61,10 @@ final class SwipeTracker {
     }
 
     func velocity(atRelease timestamp: TimeInterval) -> Double {
-        guard timestamp.isFinite else { return 0 }
-        trimHistory(currentTime: timestamp)
+        guard timestamp.isFinite,
+              let last = history.last,
+              last.timestamp > timestamp - historyLimit
+        else { return 0 }
         return velocity()
     }
 
