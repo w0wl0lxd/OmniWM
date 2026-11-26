@@ -101,30 +101,63 @@ final class NiriArrivalContinuityTests: XCTestCase {
         }
     }
 
-    func testArrivalKeepsAMovingColumnWhereTheTickDrewIt() throws {
+    func testArrivalKeepsMovingColumnsWhereTheTickDrewThem() throws {
         let fixture = try makeFixture()
-        let driver = fixture.controller.workspaceManager.animationDriver
-        let moving = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId).last)
+        let manager = fixture.controller.workspaceManager
+        let driver = manager.animationDriver
+        manager.withNiriViewportState(for: fixture.workspaceId) { state in
+            state.activeColumnIndex = 0
+            state.jumpOffset(to: 0)
+        }
+        let columns = fixture.engine.columns(in: fixture.workspaceId)
+        let gliding = columns[2]
+        let moving = columns[3]
         let start = CACurrentMediaTime()
-        moving.animateMoveFrom(
-            displacement: CGPoint(x: 200, y: 0),
-            clock: nil,
-            config: .niriWindowMovement,
-            animated: true
-        )
-        let tick = start + 0.1
-        driver.mediaTime = { start + 0.05 }
+        let tick = start + 1.0 / 120
+        driver.mediaTime = { start }
         XCTAssertEqual(driver.advanceSampleTime(in: fixture.workspaceId, to: tick), tick)
-        let before = fixture.drawnPositions(at: tick)
-        XCTAssertGreaterThan(moving.renderOffset(at: tick).x, 10)
+        let duration = SpringAnimation(from: 1, to: 0, startTime: 0, config: .niriWindowMovement).duration
+        for (column, springStart) in [(gliding, tick - 0.1), (moving, tick - 0.002)] {
+            column.animateMoveFrom(
+                displacement: CGPoint(x: 200, y: 0),
+                clock: nil,
+                config: .niriWindowMovement,
+                animated: true
+            )
+            column.moveAnimation = Self.columnSpring(from: 200, endingAt: springStart + duration)
+        }
+        let oldSprings = columns.map(\.moveAnimation)
+        let drawn = fixture.drawnPositions(at: tick)
+        var base: [WindowToken: CGFloat] = [:]
+        for (column, spring) in zip(columns, oldSprings) {
+            for window in column.windowNodes {
+                base[window.token] = try XCTUnwrap(drawn[window.token]) - (spring?.currentOffset(at: tick) ?? 0)
+            }
+        }
 
-        _ = fixture.addWindow(9_825)
+        let arrival = fixture.addWindow(9_825)
         fixture.layout()
 
-        let after = fixture.drawnPositions(at: tick)
-        for (token, position) in before {
-            XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(token)")
+        let after = fixture.engine.columns(in: fixture.workspaceId)
+        XCTAssertEqual(after.firstIndex { $0.windowNodes.contains { $0.token == arrival } }, 1)
+        XCTAssertEqual(after.firstIndex { $0 === gliding }, 3)
+        XCTAssertEqual(after.firstIndex { $0 === moving }, 4)
+        XCTAssertEqual(moving.moveAnimation?.animation.startTime, oldSprings[3]?.animation.startTime)
+        XCTAssertNotEqual(gliding.moveAnimation?.animation.startTime, oldSprings[2]?.animation.startTime)
+        for (column, oldSpring) in zip(columns, oldSprings) {
+            var time = tick
+            if let newStart = column.moveAnimation?.animation.startTime, newStart != oldSpring?.animation.startTime {
+                time = newStart
+            }
+            let positions = fixture.drawnPositions(at: time)
+            for window in column.windowNodes {
+                let expected = try XCTUnwrap(base[window.token]) + (oldSpring?.currentOffset(at: time) ?? 0)
+                XCTAssertEqual(try XCTUnwrap(positions[window.token]), expected, accuracy: 0.5, "\(window.token)")
+            }
         }
+        let first = try XCTUnwrap(columns[0].windowNodes.first?.token)
+        let settled = try XCTUnwrap(fixture.drawnPositions(at: tick + 0.2)[first])
+        XCTAssertEqual(settled, try XCTUnwrap(base[first]), accuracy: 0.5)
     }
 
     func testArrivalNearTheEndOfAColumnSpringDoesNotSnap() throws {
@@ -169,7 +202,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
         )
         column.moveAnimation = Self.columnSpring(from: 100, endingAt: CACurrentMediaTime() - 1)
 
-        XCTAssertFalse(column.offsetMoveAnimCurrent(-40, orientation: .horizontal))
+        XCTAssertFalse(column.offsetMoveAnimCurrent(-40, orientation: .horizontal, at: CACurrentMediaTime()))
     }
 
     private static func columnSpring(from offset: CGFloat, endingAt end: TimeInterval) -> MoveAnimation {

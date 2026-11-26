@@ -398,7 +398,7 @@ extension NiriContainer {
     func offsetMoveAnimCurrent(
         _ offset: CGFloat,
         orientation: Monitor.Orientation,
-        at time: TimeInterval = CACurrentMediaTime()
+        at time: TimeInterval
     ) -> Bool {
         guard let anim = moveAnimation,
               moveAnimationOrientation == orientation
