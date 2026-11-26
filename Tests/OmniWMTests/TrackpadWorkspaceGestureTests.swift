@@ -1557,7 +1557,7 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
             }
             let held = try columnFlickTravel(frames: frames, liftDelay: 0.2)
 
-            XCTAssertGreaterThan(immediate, 10 * held, "\(frames) frames")
+            XCTAssertGreaterThan(immediate - held, 100, "\(frames) frames")
             XCTAssertGreaterThan(held, 0, "\(frames) frames")
         }
     }
