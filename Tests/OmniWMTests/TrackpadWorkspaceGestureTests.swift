@@ -400,9 +400,9 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
                 }
             }
             XCTAssertEqual(fixture.controller.mouseEventHandler.state.activeGestureMode, .columnScroll)
-            let offset = manager.animationDriver.liveViewOffset(
+            let offset = try XCTUnwrap(manager.animationDriver.liveViewOffset(
                 in: fixture.ws1, semanticOffset: semanticOffset, at: 100.04
-            )
+            ))
             return (offset, semanticOffset)
         }
 
