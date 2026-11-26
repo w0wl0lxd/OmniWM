@@ -113,7 +113,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
         let gliding = columns[2]
         let moving = columns[3]
         let start = CACurrentMediaTime()
-        let tick = start + 1.0 / 120
+        let tick = start + 0.25
         driver.mediaTime = { start }
         XCTAssertEqual(driver.advanceSampleTime(in: fixture.workspaceId, to: tick), tick)
         let duration = SpringAnimation(from: 1, to: 0, startTime: 0, config: .niriWindowMovement).duration
