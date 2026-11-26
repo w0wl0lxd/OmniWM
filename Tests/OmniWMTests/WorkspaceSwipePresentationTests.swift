@@ -77,6 +77,41 @@ final class WorkspaceSwipePresentationTests: XCTestCase {
         }
     }
 
+    func testLandingSettleKeepsTheSpeedOfAFlickThatSlowsBeforeLift() throws {
+        for overviewBound in [false, true] {
+            let (controller, swipe, _, _) = try fixture()
+            controller.settings.gestures.scrollEnabled = false
+            controller.settings.gestures.workspaceSwipeEnabled = true
+            controller.settings.gestures.overviewGestureEnabled = overviewBound
+            let frames: [(height: Double, time: TimeInterval)] = [
+                (0.2, 1),
+                (0.24, 1.008),
+                (0.26, 1.016),
+                (0.264, 1.024)
+            ]
+            for (index, frame) in frames.enumerated() {
+                let touch = MouseEventHandler.GestureTouchSample(
+                    phase: .moved, normalizedPosition: CGPoint(x: 0.5, y: frame.height)
+                )
+                controller.mouseEventHandler.receiveTapGestureEvent(.init(
+                    location: CGPoint(x: 800, y: 450),
+                    phaseRawValue: (index == 0 ? NSEvent.Phase.began : .changed).rawValue,
+                    timestamp: frame.time,
+                    touches: [touch, touch, touch]
+                ))
+            }
+            controller.mouseEventHandler.receiveTapGestureEvent(.init(
+                location: CGPoint(x: 800, y: 450),
+                phaseRawValue: NSEvent.Phase.ended.rawValue,
+                timestamp: 1.032,
+                touches: []
+            ))
+            let flight = try XCTUnwrap(swipe.flight, "overview bound: \(overviewBound)")
+            XCTAssertEqual(flight.motion.target, 1, "overview bound: \(overviewBound)")
+            swipe.cancel(reason: "test-complete")
+        }
+    }
+
     func testAnimationFollowsInputAxisWithConfiguredDestinationDirection() throws {
         for axis in WorkspaceSwipeAxis.allCases {
             for inverted in [false, true] {

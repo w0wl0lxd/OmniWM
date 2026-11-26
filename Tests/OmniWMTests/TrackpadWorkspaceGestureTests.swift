@@ -349,17 +349,67 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
     }
 
     func testLandingSettleAppliesOnlyWhileMoreFingersAreBound() throws {
-        for overviewEnabled in [false, true] {
-            let fixture = try makeFixture()
+        let cases: [(label: String, overview: Bool, fourFingerColumns: Bool, niri: Bool, holds: Bool)] = [
+            ("nothing bound", false, false, true, false),
+            ("overview", true, false, true, true),
+            ("columns", false, true, true, true),
+            ("columns without a column layout", false, true, false, false)
+        ]
+        for (label, overview, fourFingerColumns, niri, holds) in cases {
+            let fixture = try makeFixture(
+                scrollGestureEnabled: fourFingerColumns,
+                columnFingers: .four,
+                enableNiri: niri
+            )
             let handler = fixture.controller.mouseEventHandler
-            fixture.controller.settings.gestures.overviewGestureEnabled = overviewEnabled
+            fixture.controller.settings.gestures.overviewGestureEnabled = overview
             sendFrame(fixture, phase: .began, fingers: 3, x: 0.5, y: 0.2, at: 100)
             sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.24, at: 100.008)
-            XCTAssertEqual(handler.tapInputs.gesturePhase, overviewEnabled ? .armed : .committed)
+            XCTAssertEqual(handler.tapInputs.gesturePhase, holds ? .armed : .committed, label)
             sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.26, at: 100.04)
-            XCTAssertEqual(handler.tapInputs.gesturePhase, .committed)
+            XCTAssertEqual(handler.tapInputs.gesturePhase, .committed, label)
             sendFrame(fixture, phase: .ended, fingers: 0, x: 0, y: 0, at: 100.5)
         }
+    }
+
+    func testHeldColumnFlickKeepsTheMovementOfEveryHeldFrame() throws {
+        func liveOffset(fourFingerSwipeBound: Bool) throws -> (offset: CGFloat, semantic: CGFloat) {
+            let fixture = try makeFixture(
+                workspaceSwipeEnabled: fourFingerSwipeBound, workspaceFingers: .four, scrollGestureEnabled: true
+            )
+            try addColumnGestureWindows(to: fixture)
+            let manager = fixture.controller.workspaceManager
+            let semanticOffset = manager.niriViewportState(for: fixture.ws1).viewOffset
+            let frames: [(x: CGFloat, time: TimeInterval)] = [
+                (0.8, 100), (0.76, 100.008), (0.74, 100.016), (0.736, 100.024), (0.736, 100.04)
+            ]
+            for (index, frame) in frames.enumerated() {
+                sendFrame(
+                    fixture,
+                    phase: index == 0 ? .began : .changed,
+                    fingers: 3,
+                    x: frame.x,
+                    y: 0.5,
+                    at: frame.time
+                )
+                if index == 1 {
+                    XCTAssertEqual(
+                        fixture.controller.mouseEventHandler.tapInputs.gesturePhase,
+                        fourFingerSwipeBound ? .armed : .committed
+                    )
+                }
+            }
+            XCTAssertEqual(fixture.controller.mouseEventHandler.state.activeGestureMode, .columnScroll)
+            let offset = manager.animationDriver.liveViewOffset(
+                in: fixture.ws1, semanticOffset: semanticOffset, at: 100.04
+            )
+            return (offset, semanticOffset)
+        }
+
+        let immediate = try liveOffset(fourFingerSwipeBound: false)
+        let held = try liveOffset(fourFingerSwipeBound: true)
+        XCTAssertNotEqual(immediate.offset, immediate.semantic)
+        XCTAssertEqual(held.offset - held.semantic, immediate.offset - immediate.semantic, accuracy: 0.001)
     }
 
     func testOverviewSwipeConsumesTailThenAllowsFreshScrolling() throws {
