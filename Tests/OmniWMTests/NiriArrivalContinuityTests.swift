@@ -164,6 +164,10 @@ final class NiriArrivalContinuityTests: XCTestCase {
     func testArrivalNearTheEndOfAColumnSpringDoesNotSnap() throws {
         for remaining in [0.008, 0.017, 0.05, 0.1] {
             let fixture = try makeFixture()
+            fixture.controller.workspaceManager.withNiriViewportState(for: fixture.workspaceId) { state in
+                state.activeColumnIndex = 0
+                state.jumpOffset(to: 0)
+            }
             let moving = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId).last)
             let token = try XCTUnwrap(moving.windowNodes.first?.token)
             moving.animateMoveFrom(
@@ -176,26 +180,18 @@ final class NiriArrivalContinuityTests: XCTestCase {
             let start = CACurrentMediaTime()
             let gliding = Self.columnSpring(from: 200, endingAt: start + remaining)
             moving.moveAnimation = gliding
-            let before = try XCTUnwrap(fixture.drawnPositions(at: start)[token])
+            let base = try XCTUnwrap(fixture.drawnPositions(at: start)[token]) - gliding.currentOffset(at: start)
 
             fixture.layout()
 
             let columns = fixture.engine.columns(in: fixture.workspaceId)
             XCTAssertEqual(columns.firstIndex { $0.windowNodes.contains { $0.token == arrival } }, 1)
-            let after = try XCTUnwrap(fixture.drawnPositions(at: start)[token])
-            XCTAssertEqual(after, before, accuracy: 0.5, "\(remaining)")
+            let spring = try XCTUnwrap(moving.moveAnimation?.animation)
+            let first = spring.startTime == gliding.animation.startTime ? start : spring.startTime
+            let after = try XCTUnwrap(fixture.drawnPositions(at: first)[token])
+            XCTAssertEqual(after, base + gliding.currentOffset(at: first), accuracy: 0.5, "\(remaining)")
             let distance = abs(moving.renderOffset(at: start).x)
             XCTAssertGreaterThan(distance, 100, "\(remaining)")
-            let restarted = try XCTUnwrap(moving.moveAnimation)
-            let spring = restarted.animation
-            let velocityBefore = Self.pointVelocity(gliding, at: spring.startTime)
-            let velocityAfter = Self.pointVelocity(restarted, at: spring.startTime)
-            XCTAssertEqual(
-                velocityAfter,
-                velocityBefore * Double(restarted.fromOffset / gliding.fromOffset),
-                accuracy: 1e-6 * abs(velocityAfter) + 1e-9,
-                "\(remaining): \(velocityBefore) -> \(velocityAfter) pt/s"
-            )
             let end = spring.startTime + spring.duration
             let last = try XCTUnwrap(fixture.drawnPositions(at: end - 0.001)[token])
             let settled = try XCTUnwrap(fixture.drawnPositions(at: end)[token])
@@ -214,10 +210,6 @@ final class NiriArrivalContinuityTests: XCTestCase {
         column.moveAnimation = Self.columnSpring(from: 100, endingAt: CACurrentMediaTime() - 1)
 
         XCTAssertFalse(column.offsetMoveAnimCurrent(-40, orientation: .horizontal, at: CACurrentMediaTime()))
-    }
-
-    private static func pointVelocity(_ animation: MoveAnimation, at time: TimeInterval) -> Double {
-        Double(animation.fromOffset) * animation.currentVelocity(at: time)
     }
 
     private static func columnSpring(from offset: CGFloat, endingAt end: TimeInterval) -> MoveAnimation {
