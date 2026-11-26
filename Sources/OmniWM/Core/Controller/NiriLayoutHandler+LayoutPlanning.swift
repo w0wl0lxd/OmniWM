@@ -315,8 +315,8 @@ extension NiriLayoutHandler {
             let insertedBeforeActive = newColumnData.filter { $0.colIdx <= originalActiveIdx }
             if !insertedBeforeActive.isEmpty, !removal.removedColumn {
                 let totalInsertedSpan = insertedBeforeActive.reduce(CGFloat(0)) { total, data in
-                    let isQuiet = data.col.windowNodes.allSatisfy { snapshot.quietArrivalTokens.contains($0.token) }
-                    return isQuiet ? total : total + data.col[keyPath: pass.primarySpanKeyPath] + pass.gap
+                    isQuietArrival(data.col, in: snapshot)
+                        ? total : total + data.col[keyPath: pass.primarySpanKeyPath] + pass.gap
                 }
                 state.rebaseOffset(by: -totalInsertedSpan)
                 state.activeColumnIndex = originalActiveIdx + insertedBeforeActive.count
@@ -327,7 +327,8 @@ extension NiriLayoutHandler {
                 pass.engine.animateColumnsForAddition(
                     columnIndex: addedData.colIdx,
                     context: pass.interactionContext,
-                    state: state
+                    state: state,
+                    keepsViewOrigin: !removal.removedColumn && !isQuietArrival(addedData.col, in: snapshot)
                 )
             }
         }
@@ -338,6 +339,10 @@ extension NiriLayoutHandler {
             tabLocalTokens: tabLocalTokens,
             viewOriginBeforeInsertion: viewOriginBeforeInsertion
         )
+    }
+
+    private func isQuietArrival(_ column: NiriContainer, in snapshot: NiriWorkspaceSnapshot) -> Bool {
+        column.windowNodes.allSatisfy { snapshot.quietArrivalTokens.contains($0.token) }
     }
 
     private func makeLayoutPass(

@@ -111,7 +111,8 @@ extension NiriLayoutEngine {
     func animateColumnsForAddition(
         columnIndex addedIdx: Int,
         context: NiriInteractionContext,
-        state: ViewportState
+        state: ViewportState,
+        keepsViewOrigin: Bool = false
     ) {
         let cols = columns(in: context.workspaceId)
         guard addedIdx >= 0, addedIdx < cols.count else { return }
@@ -130,7 +131,7 @@ extension NiriLayoutEngine {
 
         let animatedColumns: ArraySlice<NiriContainer>
         let displacement: CGFloat
-        if activeIdx <= addedIdx {
+        if keepsViewOrigin || activeIdx <= addedIdx {
             animatedColumns = cols[(addedIdx + 1)...]
             displacement = -offset
         } else {
