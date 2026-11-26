@@ -227,7 +227,7 @@ jobs:
             printf 'Ad hoc signed arm64 build of OmniWM, bundle identifier `dev.w0wl0lxd.OmniWM`.\n'
             printf 'It is not notarized. Verify the SHA-256 before you run it.\n\n'
             printf -- '- Source commit: `%s`\n' "$SHA"
-            printf -- '- Source tree (GPL-3.0 corresponding source): https://github.com/%s/tree/%s\n' "$GH_REPO" "$SHA"
+            printf -- '- Source tree (GPL-2.0-only corresponding source): https://github.com/%s/tree/%s\n' "$GH_REPO" "$SHA"
             printf -- '- SHA-256 of `%s`: `%s`\n' "$zip" "$digest"
             printf -- '- Required CI run: %s\n' "$CI_URL"
             printf -- '- Packaging run: %s\n' "$RUN_URL"
