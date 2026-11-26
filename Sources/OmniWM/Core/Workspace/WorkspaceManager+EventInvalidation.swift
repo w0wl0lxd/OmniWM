@@ -4,20 +4,29 @@
 import Foundation
 
 extension WorkspaceManager {
-    func noteInvalidation(for event: WMEvent, changesOnlyTitle: Bool = false) {
+    func noteInvalidation(for event: WMEvent, preservesPlacement: Bool = false) {
         switch event.reconcileDomain {
-        case .window: noteWindowInvalidation(for: event, changesOnlyTitle: changesOnlyTitle)
+        case .window: noteWindowInvalidation(for: event, preservesPlacement: preservesPlacement)
         case .focus: noteFocusEventInvalidation(for: event)
         case .session: noteSessionEventInvalidation(for: event)
         case .viewport: break
         }
     }
 
-    func changesOnlyManagedReplacementTitle(_ event: WMEvent) -> Bool {
+    func metadataChangePreservesPlacement(_ event: WMEvent) -> Bool {
         guard case let .managedReplacementMetadataChanged(token, _, _, metadata?, _) = event,
+              let entry = entry(for: token),
               var current = managedReplacementMetadata(for: token)
         else { return false }
         current.title = metadata.title
+        current.frame = metadata.frame
+        current.readOnlyAdmissionFrame = metadata.readOnlyAdmissionFrame
+        if metadata.workspaceId == entry.workspaceId {
+            current.workspaceId = metadata.workspaceId
+        }
+        if metadata.mode == entry.mode {
+            current.mode = metadata.mode
+        }
         return current == metadata
     }
 
@@ -41,7 +50,7 @@ extension WorkspaceManager {
         )
     }
 
-    private func noteWindowInvalidation(for event: WMEvent, changesOnlyTitle: Bool) {
+    private func noteWindowInvalidation(for event: WMEvent, preservesPlacement: Bool) {
         switch event {
         case let .windowAdmitted(_, workspaceId, _, _, _, _, _, _, _, _, _, _),
              let .windowModeChanged(_, workspaceId, _, _, _),
@@ -53,7 +62,7 @@ extension WorkspaceManager {
             noteInvalidation(
                 workspaceId: workspaceId,
                 domains: [.layout, .focus],
-                runtimeDomains: changesOnlyTitle ? .focus : nil
+                runtimeDomains: preservesPlacement ? .focus : nil
             )
 
         case let .hiddenStateChanged(token, workspaceId, _, hiddenState, _):

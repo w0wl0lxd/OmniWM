@@ -51,6 +51,47 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
         XCTAssertTrue(fixture.swipe.hasPresentation)
     }
 
+    func testRuleReevaluationWithNewTitleAndLiveFrameKeepsSwipe() async throws {
+        let fixture = try fixture()
+        var metadata = try XCTUnwrap(fixture.manager.managedReplacementMetadata(for: Self.token))
+        metadata.frame = CGRect(x: 120, y: 80, width: 900, height: 620)
+        metadata.readOnlyAdmissionFrame = CGRect(x: 100, y: 60, width: 900, height: 620)
+        XCTAssertTrue(fixture.manager.setManagedReplacementMetadata(metadata, for: Self.token))
+        beginSwipe(fixture)
+        reportRuleDecision(
+            title: "Renamed",
+            disposition: .managed,
+            windowServerFrame: CGRect(x: -780, y: 80, width: 900, height: 620),
+            in: fixture
+        )
+
+        let outcome = await fixture.controller.reevaluateWindowRules(for: [.window(Self.token)])
+
+        XCTAssertFalse(outcome.relayoutNeeded)
+        let updated = try XCTUnwrap(fixture.manager.managedReplacementMetadata(for: Self.token))
+        XCTAssertEqual(updated.title, "Renamed")
+        XCTAssertEqual(updated.frame, CGRect(x: -780, y: 80, width: 900, height: 620))
+        XCTAssertNil(updated.readOnlyAdmissionFrame)
+        XCTAssertTrue(fixture.swipe.hasPresentation)
+    }
+
+    func testRuleReevaluationWithNewTitleAndStaleWorkspaceKeepsSwipe() async throws {
+        let fixture = try fixture()
+        var metadata = try XCTUnwrap(fixture.manager.managedReplacementMetadata(for: Self.token))
+        metadata.workspaceId = WorkspaceDescriptor.ID()
+        XCTAssertTrue(fixture.manager.setManagedReplacementMetadata(metadata, for: Self.token))
+        beginSwipe(fixture)
+        reportRuleDecision(title: "Renamed", disposition: .managed, in: fixture)
+
+        let outcome = await fixture.controller.reevaluateWindowRules(for: [.window(Self.token)])
+
+        XCTAssertFalse(outcome.relayoutNeeded)
+        let updated = try XCTUnwrap(fixture.manager.managedReplacementMetadata(for: Self.token))
+        XCTAssertEqual(updated.title, "Renamed")
+        XCTAssertEqual(updated.workspaceId, fixture.workspaceId)
+        XCTAssertTrue(fixture.swipe.hasPresentation)
+    }
+
     func testRuleReevaluationThatFloatsWindowRetiresSwipe() async throws {
         let fixture = try fixture()
         beginSwipe(fixture)
@@ -105,7 +146,10 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
     }
 
     private func reportRuleDecision(
-        title: String, disposition: WindowDecisionDisposition, in fixture: Fixture
+        title: String,
+        disposition: WindowDecisionDisposition,
+        windowServerFrame: CGRect? = nil,
+        in fixture: Fixture
     ) {
         let evaluation = WMController.WindowDecisionEvaluation(
             token: Self.token,
@@ -125,7 +169,9 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
                     attributeFetchSucceeded: true
                 ),
                 sizeConstraints: nil,
-                windowServer: nil
+                windowServer: windowServerFrame.map {
+                    WindowServerInfo(id: UInt32(Self.token.windowId), pid: Self.token.pid, level: 0, frame: $0)
+                }
             ),
             decision: WindowDecision(
                 disposition: disposition,
