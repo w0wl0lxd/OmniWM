@@ -150,7 +150,6 @@ extension TOMLNode {
         return result
     }
 
-    // Rows the old file lacks, such as hotkeys added since, shift the indices, so an id wins.
     private static func knownTable(
         for oldTable: [String: TOMLNode],
         at index: Int,
