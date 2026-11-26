@@ -3104,11 +3104,11 @@ final class ShellWidgetClickTests: XCTestCase {
         window.isReleasedWhenClosed = false
         window.contentView = surface.view
         surface.view.frame = CGRect(x: 0, y: 0, width: 30, height: 10)
-        let event = { (x: CGFloat) in
+        let click = { (x: CGFloat, type: NSEvent.EventType, flags: NSEvent.ModifierFlags) in
             NSEvent.mouseEvent(
-                with: .leftMouseDown,
+                with: type,
                 location: CGPoint(x: x, y: 5),
-                modifierFlags: [],
+                modifierFlags: flags,
                 timestamp: 0,
                 windowNumber: window.windowNumber,
                 context: nil,
@@ -3117,6 +3117,7 @@ final class ShellWidgetClickTests: XCTestCase {
                 pressure: 1
             )
         }
+        let event = { (x: CGFloat) in click(x, .leftMouseDown, []) }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let hiddenBar = HiddenBarController(settings: SettingsStore(
@@ -3129,6 +3130,10 @@ final class ShellWidgetClickTests: XCTestCase {
         XCTAssertTrue(hiddenBar.isExemptWindow(window, event: event(15)))
         XCTAssertFalse(hiddenBar.isExemptWindow(window, event: event(25)))
         XCTAssertFalse(WorkspaceBarMenuButton.contains(event(5), in: window))
+        XCTAssertFalse(hiddenBar.isExemptWindow(window, event: click(5, .rightMouseDown, [])))
+        XCTAssertFalse(hiddenBar.isExemptWindow(window, event: click(5, .leftMouseDown, .control)))
+        XCTAssertEqual(ShellRequest(words: ["hidden-bar", "panel"])?.isHiddenBarPanel, true)
+        XCTAssertEqual(ShellRequest(words: ["shell", "menu"])?.isHiddenBarPanel, false)
     }
 
     func testBarsCarryTheDragPresentation() async throws {

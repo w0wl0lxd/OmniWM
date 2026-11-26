@@ -28,6 +28,7 @@ struct ShellCommandOrigin {
 
 enum ShellRequest: Equatable, Sendable {
     static let statusMenuCommand = "shell menu"
+    static let hiddenBarPanelCommand = "hidden-bar panel"
 
     case command(IPCCommandRequest)
     case window(IPCWindowRequest)
@@ -58,6 +59,10 @@ enum ShellRequest: Equatable, Sendable {
 extension ShellRequest {
     var isHiddenBarActivation: Bool {
         if case .hiddenBarActivate = self { true } else { false }
+    }
+
+    var isHiddenBarPanel: Bool {
+        false
     }
 }
 
