@@ -349,25 +349,38 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
     }
 
     func testLandingSettleAppliesOnlyWhileMoreFingersAreBound() throws {
-        let cases: [(label: String, overview: Bool, fourFingerColumns: Bool, niri: Bool, holds: Bool)] = [
-            ("nothing bound", false, false, true, false),
-            ("overview", true, false, true, true),
-            ("columns", false, true, true, true),
-            ("columns without a column layout", false, true, false, false)
+        struct Case {
+            let label: String
+            let overview: Bool
+            let fourFingerColumns: Bool
+            let niri: Bool
+            let holds: Bool
+        }
+        let cases = [
+            Case(label: "nothing bound", overview: false, fourFingerColumns: false, niri: true, holds: false),
+            Case(label: "overview", overview: true, fourFingerColumns: false, niri: true, holds: true),
+            Case(label: "columns", overview: false, fourFingerColumns: true, niri: true, holds: true),
+            Case(
+                label: "columns without a column layout",
+                overview: false,
+                fourFingerColumns: true,
+                niri: false,
+                holds: false
+            )
         ]
-        for (label, overview, fourFingerColumns, niri, holds) in cases {
+        for testCase in cases {
             let fixture = try makeFixture(
-                scrollGestureEnabled: fourFingerColumns,
+                scrollGestureEnabled: testCase.fourFingerColumns,
                 columnFingers: .four,
-                enableNiri: niri
+                enableNiri: testCase.niri
             )
             let handler = fixture.controller.mouseEventHandler
-            fixture.controller.settings.gestures.overviewGestureEnabled = overview
+            fixture.controller.settings.gestures.overviewGestureEnabled = testCase.overview
             sendFrame(fixture, phase: .began, fingers: 3, x: 0.5, y: 0.2, at: 100)
             sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.24, at: 100.008)
-            XCTAssertEqual(handler.tapInputs.gesturePhase, holds ? .armed : .committed, label)
+            XCTAssertEqual(handler.tapInputs.gesturePhase, testCase.holds ? .armed : .committed, testCase.label)
             sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.26, at: 100.04)
-            XCTAssertEqual(handler.tapInputs.gesturePhase, .committed, label)
+            XCTAssertEqual(handler.tapInputs.gesturePhase, .committed, testCase.label)
             sendFrame(fixture, phase: .ended, fingers: 0, x: 0, y: 0, at: 100.5)
         }
     }
