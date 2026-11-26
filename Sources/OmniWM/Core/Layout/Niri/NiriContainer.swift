@@ -406,12 +406,11 @@ extension NiriContainer {
         }
         let now = CACurrentMediaTime()
         let value = anim.animation.value(at: now)
-        if value > 0.001 {
-            moveAnimation = MoveAnimation(
-                animation: anim.animation,
-                fromOffset: anim.fromOffset + offset / CGFloat(value)
-            )
-        }
+        guard value > 0.001 else { return false }
+        moveAnimation = MoveAnimation(
+            animation: anim.animation,
+            fromOffset: anim.fromOffset + offset / CGFloat(value)
+        )
         return true
     }
 

@@ -56,38 +56,61 @@ final class NiriArrivalContinuityTests: XCTestCase {
     }
 
     func testArrivalStartsFromTheDrawnStripAndMovesOneWay() throws {
-        for activeColumn in 0 ... 3 {
-            let fixture = try makeFixture()
-            let manager = fixture.controller.workspaceManager
-            manager.withNiriViewportState(for: fixture.workspaceId) { state in
-                state.activeColumnIndex = activeColumn
-                state.jumpOffset(to: 0)
+        for (arrivalCount, isQuiet) in [(1, false), (2, false), (1, true)] {
+            for activeColumn in 0 ... 3 {
+                try checkArrival(count: arrivalCount, isQuiet: isQuiet, activeColumn: activeColumn)
             }
-            let before = fixture.drawnPositions(at: 0)
-            XCTAssertEqual(before.count, 4)
+        }
+    }
 
-            let arrival = fixture.addWindow(9_825)
-            fixture.layout()
+    private func checkArrival(count: Int, isQuiet: Bool, activeColumn: Int) throws {
+        let label = "\(count) arrivals, quiet \(isQuiet), active \(activeColumn)"
+        let fixture = try makeFixture()
+        let manager = fixture.controller.workspaceManager
+        manager.withNiriViewportState(for: fixture.workspaceId) { state in
+            state.activeColumnIndex = activeColumn
+            state.jumpOffset(to: 0)
+        }
+        let before = fixture.drawnPositions(at: 0)
+        XCTAssertEqual(before.count, 4, label)
 
-            let column = fixture.engine.columns(in: fixture.workspaceId).firstIndex {
-                $0.windowNodes.contains { $0.token == arrival }
-            }
-            XCTAssertEqual(column, 1, "active \(activeColumn)")
-            let after = fixture.drawnPositions(at: 0)
-            for (token, position) in before {
-                XCTAssertEqual(
-                    try XCTUnwrap(after[token]), position, accuracy: 0.5, "active \(activeColumn) \(token)"
-                )
-            }
-            let start = CACurrentMediaTime()
+        let arrivals = (0 ..< count).map { fixture.addWindow(9_825 + $0) }
+        if isQuiet {
+            manager.quietArrivalTokens.formUnion(arrivals)
+        }
+        fixture.layout()
+
+        let columns = fixture.engine.columns(in: fixture.workspaceId)
+        let arrivalColumns = arrivals.compactMap { arrival in
+            columns.firstIndex { $0.windowNodes.contains { $0.token == arrival } }
+        }
+        XCTAssertEqual(Set(arrivalColumns), Set(1 ... count), label)
+        let after = fixture.drawnPositions(at: 0)
+        for (token, position) in before {
+            XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(label) \(token)")
+        }
+        let start = CACurrentMediaTime()
+        for arrival in arrivals {
             let positions = try (0 ..< 90).map { frame in
                 try (XCTUnwrap(fixture.drawnPositions(at: start + Double(frame) / 120)[arrival]) * 100).rounded()
             }
             XCTAssertTrue(
                 positions == positions.sorted() || positions == positions.sorted(by: >),
-                "active \(activeColumn) \(positions)"
+                "\(label) \(positions)"
             )
         }
+    }
+
+    func testOffsettingASettledColumnSpringStartsANewOne() {
+        let column = NiriContainer()
+        column.animateMoveFrom(
+            displacement: CGPoint(x: 100, y: 0),
+            clock: AnimationClock(time: CACurrentMediaTime() - 10),
+            config: .niriWindowMovement,
+            animated: true
+        )
+
+        XCTAssertFalse(column.offsetMoveAnimCurrent(-40, orientation: .horizontal))
     }
 
     private func makeFixture() throws -> Fixture {
