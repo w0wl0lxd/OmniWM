@@ -159,10 +159,15 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
             _ = MouseEventHandler.annotatedMoveTapCallback(OpaquePointer(bitPattern: 1)!, .leftMouseDragged, event, nil)
         }
 
-        func release(_ token: WindowToken, at observed: CGRect, press: CGPoint? = nil) throws {
+        func release(
+            _ token: WindowToken,
+            at observed: CGRect,
+            press: CGPoint? = nil,
+            draggedTo: CGPoint? = nil
+        ) throws {
             let reported = ReportedFrame(controller.axManager.lastAppliedFrame(for: token.windowId))
             handler.nativeWindowFrameProvider = { _ in reported.frame }
-            try beginDrag(token, at: press)
+            try beginDrag(token, at: press, draggedTo: draggedTo)
             reported.frame = observed
             let entry = try entry(token)
             XCTAssertTrue(handler.handleNativeTitleBarDragFrameChanged(for: entry))
@@ -4241,7 +4246,11 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
             fixture.controller.layoutRefreshController.stopScrollAnimation(for: fixture.monitor.displayId)
 
             let widened = try fixture.frame(resized)
-            try fixture.release(resized, at: grownAlongTheStrip(widened, by: -300))
+            try fixture.release(
+                resized,
+                at: grownAlongTheStrip(widened, by: -300),
+                draggedTo: slideDragLocation(from: widened.center)
+            )
             XCTAssertEqual(
                 try fixture.frame(resized)[keyPath: span],
                 widened[keyPath: span] - 300,
@@ -4529,10 +4538,16 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
             engine: XCTUnwrap(fixture.controller.niriEngine)
         )
         XCTAssertTrue(fixture.manager.animationDriver.hasMotion(in: fixture.workspaceId))
+        XCTAssertTrue(fixture.controller.niriLayoutHandler.hasScrollAnimation(for: fixture.workspaceId))
     }
 
-    private func pressDuringSlide(_ fixture: Fixture, _ token: WindowToken, exact: Bool) throws -> CGPoint {
-        let press = try fixture.frame(token).center
+    private func pressDuringSlide(
+        _ fixture: Fixture,
+        _ token: WindowToken,
+        exact: Bool,
+        at location: CGPoint? = nil
+    ) throws -> CGPoint {
+        let press = try location ?? fixture.frame(token).center
         fixture.handler.retireNativeTitleBarDragAtInputBoundary()
         fixture.handler.pressedMouseButtonsProvider = { MouseEventHandler.MouseButton.left.pressedMask }
         try startSlide(fixture)
@@ -4631,6 +4646,103 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
                 "recordsPress: \(recordsPress)"
             )
         }
+    }
+
+    func testAWiggleReportedThroughTheAnnotatedTapLeavesTheSlideRunning() throws {
+        let fixture = try makeFixture(.niri, pid: 835_307)
+        let token = fixture.tokens[0]
+        let start = try fixture.frame(token)
+        let wiggle = slideDragLocation(from: start.center, distance: 3)
+        let intake = fixture.controller.eventIntake
+        intake.open(sink: fixture.controller.eventInterpreter)
+        defer { intake.close() }
+        fixture.handler.state.moveTap = try XCTUnwrap(CFMachPortCreate(kCFAllocatorDefault, nil, nil, nil))
+        fixture.handler.pressedMouseButtonsProvider = { MouseEventHandler.MouseButton.left.pressedMask }
+        MouseEventHandler._instance = fixture.handler
+        fixture.handler.syncTapFilterSnapshot()
+        let tap = fixture.handler.inputTapThread
+        try startSlide(fixture)
+
+        tap.evaluateLeftMouseDown(at: start.center, modifiers: [], timestamp: 10, snapshot: tap.filterSnapshot) {
+            [token: ScreenCoordinateSpace.toWindowServer(rect: start)]
+        }
+        XCTAssertTrue(EventIntake.post(.mouseDragged(button: .left, location: wiggle)))
+        try fixture.annotatedDrag(windowId: token.windowId, at: wiggle, timestamp: 20)
+        intake.drainNow()
+
+        XCTAssertTrue(fixture.manager.animationDriver.hasMotion(in: fixture.workspaceId))
+        XCTAssertEqual(fixture.phase, .armed)
+        XCTAssertFalse(fixture.controller.axManager.isNativeTitleBarDragActive(for: token))
+
+        fixture.handler.pressedMouseButtonsProvider = { 0 }
+        XCTAssertTrue(EventIntake.post(.leftMouseUp(location: wiggle)))
+        intake.drainNow()
+
+        XCTAssertTrue(fixture.manager.animationDriver.hasMotion(in: fixture.workspaceId))
+        XCTAssertNil(fixture.handler.state.nativeTitleBarDrag)
+        XCTAssertTrue(fixture.controller.axManager.frameLedger.forceApplyWindowIds.contains(token.windowId))
+    }
+
+    func testAWiggleReleasedBeforeItsAnnotatedDragKeepsTheWindowCorrectable() throws {
+        for (index, slideEndsFirst) in [false, true].enumerated() {
+            let fixture = try makeFixture(.niri, pid: pid_t(835_308 + index))
+            let token = fixture.tokens[0]
+            let start = try fixture.frame(token)
+            let wiggle = slideDragLocation(from: start.center, distance: 3)
+            let intake = fixture.controller.eventIntake
+            intake.open(sink: fixture.controller.eventInterpreter)
+            defer { intake.close() }
+            fixture.handler.state.moveTap = try XCTUnwrap(CFMachPortCreate(kCFAllocatorDefault, nil, nil, nil))
+            fixture.handler.pressedMouseButtonsProvider = { MouseEventHandler.MouseButton.left.pressedMask }
+            MouseEventHandler._instance = fixture.handler
+            fixture.handler.syncTapFilterSnapshot()
+            let tap = fixture.handler.inputTapThread
+            try startSlide(fixture)
+
+            tap.evaluateLeftMouseDown(at: start.center, modifiers: [], timestamp: 10, snapshot: tap.filterSnapshot) {
+                [token: ScreenCoordinateSpace.toWindowServer(rect: start)]
+            }
+            XCTAssertTrue(EventIntake.post(.mouseDragged(button: .left, location: wiggle)))
+            intake.drainNow()
+            XCTAssertEqual(fixture.handler.state.nativeTitleBarDragFallbackToken, token)
+            if slideEndsFirst {
+                fixture.controller.niriLayoutHandler.cancelAnimationMotion(for: fixture.workspaceId)
+            }
+            fixture.handler.pressedMouseButtonsProvider = { 0 }
+            XCTAssertTrue(EventIntake.post(.leftMouseUp(location: wiggle)))
+            intake.drainNow()
+
+            XCTAssertEqual(
+                fixture.manager.animationDriver.hasMotion(in: fixture.workspaceId),
+                !slideEndsFirst,
+                "slideEndsFirst: \(slideEndsFirst)"
+            )
+            XCTAssertTrue(fixture.handler.state.nativeTitleBarDragFallbackReleased, "slideEndsFirst: \(slideEndsFirst)")
+            XCTAssertEqual(
+                fixture.controller.axManager.frameLedger.forceApplyWindowIds.contains(token.windowId),
+                !slideEndsFirst,
+                "slideEndsFirst: \(slideEndsFirst)"
+            )
+        }
+    }
+
+    func testAnEdgeResizeWiggleReleasedDuringASlideLeavesTheSlideAndTheWidth() throws {
+        let fixture = try makeFixture(.niri, pid: 835_310)
+        let token = fixture.tokens[0]
+        let pressedFrame = try fixture.frame(token)
+        let edge = CGPoint(x: pressedFrame.maxX - FrameTolerance.frameWrite, y: pressedFrame.midY)
+        let press = try pressDuringSlide(fixture, token, exact: true, at: edge)
+        let width = try XCTUnwrap(fixture.niriNode(token).frame?.width)
+
+        fixture.handler.dispatchMouseDragged(at: slideDragLocation(from: press, distance: 2))
+        fixture.handler.pressedMouseButtonsProvider = { 0 }
+        fixture.handler.dispatchMouseUp(at: slideDragLocation(from: press, distance: 2))
+
+        XCTAssertTrue(fixture.manager.animationDriver.hasMotion(in: fixture.workspaceId))
+        XCTAssertNil(fixture.handler.state.nativeTitleBarDrag)
+        XCTAssertFalse(fixture.controller.axManager.isNativeTitleBarDragActive(for: token))
+        XCTAssertTrue(fixture.controller.axManager.frameLedger.forceApplyWindowIds.contains(token.windowId))
+        XCTAssertEqual(try XCTUnwrap(fixture.niriNode(token).frame?.width), width, accuracy: FrameTolerance.frameWrite)
     }
 
     func testAnEdgeResizePressedDuringASlideIsKeptWithTheFramesCapturedAtThePress() async throws {
