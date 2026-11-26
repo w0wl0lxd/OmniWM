@@ -144,6 +144,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
         XCTAssertEqual(after.firstIndex { $0 === moving }, 4)
         XCTAssertEqual(moving.moveAnimation?.animation.startTime, oldSprings[3]?.animation.startTime)
         XCTAssertNotEqual(gliding.moveAnimation?.animation.startTime, oldSprings[2]?.animation.startTime)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(gliding.moveAnimation?.animation.startTime), tick - 1e-4)
         for (column, oldSpring) in zip(columns, oldSprings) {
             var time = tick
             if let newStart = column.moveAnimation?.animation.startTime, newStart != oldSpring?.animation.startTime {
