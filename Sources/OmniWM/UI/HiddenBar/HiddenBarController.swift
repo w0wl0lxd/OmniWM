@@ -218,7 +218,7 @@ final class HiddenBarController {
         )
     }
 
-    private func releaseMenuReveal(
+    func releaseMenuReveal(
         _ bundleID: String,
         disposition: HiddenBarMenuSession.RevealDisposition = .conceal
     ) {

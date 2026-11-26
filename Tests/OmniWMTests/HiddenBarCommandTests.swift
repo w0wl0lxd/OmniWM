@@ -157,6 +157,19 @@ final class HiddenBarCommandTests: XCTestCase {
     }
 
     @MainActor
+    func testARepeatedRevealThatFailsConcealsTheItemAgain() throws {
+        let fixture = try makeRevealFixture()
+        fixture.hiddenBar.applyConcealment()
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "30"]), .executed)
+        XCTAssertEqual(try fixture.isAllowed(), true)
+
+        fixture.menuBar.failsNextRead = true
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "30"]), .noChange)
+        XCTAssertEqual(try fixture.isAllowed(), false)
+        XCTAssertTrue(fixture.hiddenBar.revealedBundleIDs.isEmpty)
+    }
+
+    @MainActor
     func testALaterRevealNeverShortensAnEarlierOneAndTheTotalIsCapped() async throws {
         let fixture = try makeRevealFixture()
         fixture.hiddenBar.applyConcealment()
@@ -180,27 +193,85 @@ final class HiddenBarCommandTests: XCTestCase {
     }
 
     @MainActor
-    func testATimerRestartedByAMenuReleaseKeepsTheRevealTime() async throws {
+    func testARevealAfterAMenuPauseKeepsThePausedTime() async throws {
+        let fixture = try makeRevealFixture()
+        fixture.hiddenBar.applyConcealment()
+        let startedAt = fixture.now
+        var laterReveal: ExternalCommandResult?
+        fixture.hiddenBar.reconcealment.menuOpenProviderForTests = { [weak fixture] _ in
+            guard let fixture else { return false }
+            let elapsed = startedAt.duration(to: fixture.now)
+            return elapsed >= .seconds(5) && elapsed < .seconds(25)
+        }
+        fixture.hiddenBar.reconcealment.menuGuardSleeper = { [weak fixture] delay in
+            guard let fixture else { return }
+            fixture.now = fixture.now.advanced(by: delay)
+            if laterReveal == nil, startedAt.duration(to: fixture.now) >= .seconds(26) {
+                laterReveal = try fixture.reveal([fixture.bundleID, "30"])
+            }
+        }
+
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "30"]), .executed)
+        for _ in 0 ..< 3 {
+            await fixture.hiddenBar.reconcealment.task?.value
+        }
+        XCTAssertEqual(laterReveal, .executed)
+        let elapsed = startedAt.duration(to: fixture.now)
+        XCTAssertGreaterThanOrEqual(elapsed, .seconds(48))
+        XCTAssertLessThan(elapsed, .seconds(53))
+        XCTAssertEqual(try fixture.isAllowed(), false)
+    }
+
+    @MainActor
+    func testAMenuReleaseKeepsAnItemThatARevealStillHolds() async throws {
         let fixture = try makeRevealFixture()
         fixture.hiddenBar.applyConcealment()
         let startedAt = fixture.now
         XCTAssertEqual(try fixture.reveal([fixture.bundleID, "20"]), .executed)
 
-        fixture.hiddenBar.reconcealment.cancel(reason: .cancelled)
-        XCTAssertTrue(fixture.hiddenBar.reconcealment.holdsReveal(of: fixture.bundleID))
-        fixture.hiddenBar.reconcealment.schedule(intervalSeconds: 2)
+        fixture.hiddenBar.releaseMenuReveal(fixture.bundleID)
+        XCTAssertEqual(try fixture.isAllowed(), true)
+        XCTAssertEqual(fixture.hiddenBar.revealedBundleIDs, [fixture.bundleID])
         await fixture.hiddenBar.reconcealment.task?.value
         XCTAssertGreaterThanOrEqual(startedAt.duration(to: fixture.now), .seconds(20))
         XCTAssertFalse(fixture.hiddenBar.reconcealment.holdsReveal(of: fixture.bundleID))
         XCTAssertEqual(try fixture.isAllowed(), false)
     }
 
-    private func makeMonitor(hasNotch: Bool) -> Monitor {
+    @MainActor
+    func testTheMenuBarCountsAsCoveredOnlyWhereTheWorkspaceBarIsShown() {
+        let settings = makeSettingsStore()
+        settings.workspaceBar.enabled = true
+        settings.workspaceBar.position = .overlappingMenuBar
+        settings.workspaceBar.fullWidth = true
+        settings.workspaceBar.fullWidthNotchMode = .moveBelowMenuBar
+        let controller = WMController(settings: settings)
+        let plain = makeMonitor(hasNotch: false, displayId: 1)
+        let notched = makeMonitor(hasNotch: true, displayId: 2)
+        controller.workspaceManager.applyMonitorConfigurationChange([notched, plain])
+        XCTAssertTrue(controller.isMenuBarCoveredByWorkspaceBar())
+
+        controller.hiddenWorkspaceBarMonitorIds = [plain.id]
+        XCTAssertFalse(controller.isMenuBarCoveredByWorkspaceBar())
+        controller.hiddenWorkspaceBarMonitorIds = [notched.id]
+        XCTAssertTrue(controller.isMenuBarCoveredByWorkspaceBar())
+
+        controller.hiddenWorkspaceBarMonitorIds = []
+        settings.workspaceBar.autoHide = true
+        XCTAssertFalse(controller.isMenuBarCoveredByWorkspaceBar())
+        controller.isWorkspaceBarRevealHeld = true
+        XCTAssertTrue(controller.isMenuBarCoveredByWorkspaceBar())
+
+        settings.workspaceBar.enabled = false
+        XCTAssertFalse(controller.isMenuBarCoveredByWorkspaceBar())
+    }
+
+    private func makeMonitor(hasNotch: Bool, displayId: UInt32 = 1) -> Monitor {
         Monitor(
-            id: Monitor.ID(displayId: 1),
-            displayId: 1,
-            frame: CGRect(x: 0, y: 0, width: 1512, height: 982),
-            visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 950),
+            id: Monitor.ID(displayId: displayId),
+            displayId: displayId,
+            frame: CGRect(x: CGFloat(displayId - 1) * 1512, y: 0, width: 1512, height: 982),
+            visibleFrame: CGRect(x: CGFloat(displayId - 1) * 1512, y: 0, width: 1512, height: 950),
             hasNotch: hasNotch,
             notchRange: hasNotch ? 656 ... 856 : nil,
             name: "Test"
@@ -245,6 +316,7 @@ final class HiddenBarCommandTests: XCTestCase {
         var accesses: [Bool] = []
         var ignoresWrites = false
         var throwsAfterWrite = false
+        var failsNextRead = false
 
         init(data: Data) {
             self.data = data
@@ -280,7 +352,13 @@ final class HiddenBarCommandTests: XCTestCase {
             settings.hiddenBar.hiddenBundleIDs = [bundleID]
             settings.hiddenBar.rehideIntervalSeconds = 5
             hiddenBar = HiddenBarController(settings: settings, hider: NativeMenuBarHider(
-                preferences: NativeMenuBarPreferences(read: { menuBar.data }, write: { changed in
+                preferences: NativeMenuBarPreferences(read: {
+                    if menuBar.failsNextRead {
+                        menuBar.failsNextRead = false
+                        throw CocoaError(.fileReadUnknown)
+                    }
+                    return menuBar.data
+                }, write: { changed in
                     menuBar.writes += 1
                     if !menuBar.ignoresWrites { menuBar.data = changed }
                     if menuBar.throwsAfterWrite {
