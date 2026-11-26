@@ -101,6 +101,32 @@ final class NiriArrivalContinuityTests: XCTestCase {
         }
     }
 
+    func testArrivalKeepsAMovingColumnWhereTheTickDrewIt() throws {
+        let fixture = try makeFixture()
+        let driver = fixture.controller.workspaceManager.animationDriver
+        let moving = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId).last)
+        let start = CACurrentMediaTime()
+        moving.animateMoveFrom(
+            displacement: CGPoint(x: 200, y: 0),
+            clock: nil,
+            config: .niriWindowMovement,
+            animated: true
+        )
+        let tick = start + 0.1
+        driver.mediaTime = { start + 0.05 }
+        XCTAssertEqual(driver.advanceSampleTime(in: fixture.workspaceId, to: tick), tick)
+        let before = fixture.drawnPositions(at: tick)
+        XCTAssertGreaterThan(moving.renderOffset(at: tick).x, 10)
+
+        _ = fixture.addWindow(9_825)
+        fixture.layout()
+
+        let after = fixture.drawnPositions(at: tick)
+        for (token, position) in before {
+            XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(token)")
+        }
+    }
+
     func testOffsettingASettledColumnSpringStartsANewOne() {
         let column = NiriContainer()
         column.animateMoveFrom(
