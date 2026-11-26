@@ -71,30 +71,38 @@ extension MouseEventHandler {
     private func keepsSlideForPress(at location: CGPoint) -> Bool {
         guard let press = state.leftPressLocation,
               abs(location.x - press.x) < Self.slideDragSlop,
-              abs(location.y - press.y) < Self.slideDragSlop
+              abs(location.y - press.y) < Self.slideDragSlop,
+              let token = slideGatedPressToken,
+              let controller
         else { return false }
-        let token: WindowToken? = if let drag = state.nativeTitleBarDrag {
-            drag.phase == .armed ? drag.token : nil
-        } else {
-            state.awaitsNativeTitleBarDragTarget ? state.nativeTitleBarDragFallbackToken : nil
-        }
-        guard let token, let controller,
-              let pressed = controller.workspaceManager.entry(for: token)
-        else { return false }
-        return engineRunningNiriSlide(in: pressed.workspaceId, controller: controller) != nil
+        return isNiriSlideRunning(for: token, controller: controller)
     }
 
-    private func settleSlidePressBeforeRelease() {
-        guard state.leftPressWasDragged,
-              let drag = state.nativeTitleBarDrag,
-              drag.phase == .armed,
-              let controller,
-              let pressed = controller.workspaceManager.entry(for: drag.token)
+    private var slideGatedPressToken: WindowToken? {
+        if let drag = state.nativeTitleBarDrag {
+            return drag.phase == .armed ? drag.token : nil
+        }
+        return state.awaitsNativeTitleBarDragTarget ? state.nativeTitleBarDragFallbackToken : nil
+    }
+
+    private func isNiriSlideRunning(for token: WindowToken, controller: WMController) -> Bool {
+        guard let pressed = controller.workspaceManager.entry(for: token) else { return false }
+        return controller.niriLayoutHandler.hasScrollAnimation(for: pressed.workspaceId)
+            && engineRunningNiriSlide(in: pressed.workspaceId, controller: controller) != nil
+    }
+
+    func settleSlidePressBeforeRelease() {
+        guard !isInputSuppressed, state.leftPressWasDragged,
+              let token = slideGatedPressToken, let controller
         else { return }
-        if engineRunningNiriSlide(in: pressed.workspaceId, controller: controller) == nil {
+        let sliding = isNiriSlideRunning(for: token, controller: controller)
+        if sliding {
+            controller.axManager.forceApplyNextFrame(for: token.windowId)
+        }
+        if state.nativeTitleBarDrag == nil {
+            state.nativeResizeStart?.wasDragged = true
+        } else if !sliding {
             beginNativeTitleBarDragIfNeeded(button: .left)
-        } else {
-            controller.axManager.forceApplyNextFrame(for: drag.token.windowId)
         }
     }
 

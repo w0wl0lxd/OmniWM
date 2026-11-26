@@ -136,6 +136,7 @@ extension MouseEventHandler {
         if button == .left, let location {
             state.nativeCrossDisplayMove?.releaseLocation = location
         }
+        if button == .left { settleSlidePressBeforeRelease() }
         guard button == .left,
               state.nativeTitleBarDrag == nil,
               state.awaitsNativeTitleBarDragTarget,
