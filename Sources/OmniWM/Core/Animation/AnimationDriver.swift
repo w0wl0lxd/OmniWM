@@ -114,7 +114,8 @@ final class AnimationDriver {
     func beginGesture(
         in workspaceId: WorkspaceDescriptor.ID,
         isTrackpad: Bool,
-        timestamp: TimeInterval = CACurrentMediaTime()
+        timestamp: TimeInterval = CACurrentMediaTime(),
+        previousTimestamp _: TimeInterval? = nil
     ) -> GestureSessionID? {
         let livenessTimestamp = gestureLivenessNow()
         guard timestamp.isFinite, livenessTimestamp.isFinite else {

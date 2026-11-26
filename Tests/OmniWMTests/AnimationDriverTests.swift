@@ -221,7 +221,7 @@ final class AnimationDriverTests: XCTestCase {
 
     func testFlingGestureEndProjectsAndCommitsDeceleration() {
         let driver = AnimationDriver()
-        driver.beginGesture(in: workspaceId, isTrackpad: true)
+        driver.beginGesture(in: workspaceId, isTrackpad: true, timestamp: 1.00, previousTimestamp: 0.98)
         driver.updateGesture(
             in: workspaceId,
             delta: 120,
@@ -236,7 +236,7 @@ final class AnimationDriverTests: XCTestCase {
             viewportWidth: AnimationDriver.gestureWorkingAreaMovement,
             timestamp: 1.04
         )!
-        let expectedVelocity = 120.0 / (1.04 - 1.00)
+        let expectedVelocity = 120.0 / (1.00 - 0.98)
 
         XCTAssertEqual(
             sample.relativeProjectedOffset - sample.relativeOffset,

@@ -71,6 +71,20 @@ final class SwipeTrackerTests: XCTestCase {
         XCTAssertEqual(narrow.velocity(), 30 / (1.14 - 1.10))
     }
 
+    func testReleaseVelocityDoesNotDependOnTheLiftTime() {
+        let tracker = SwipeTracker()
+        let last = 1 + 12 * 0.008
+        for frame in 0 ... 12 {
+            tracker.push(delta: 8, timestamp: 1 + Double(frame) * 0.008)
+        }
+        let velocity = tracker.velocity()
+
+        for liftDelay in [0, 0.008, 0.024, 0.048, 0.064, 0.072] {
+            XCTAssertEqual(tracker.velocity(atRelease: last + liftDelay), velocity, "\(liftDelay)")
+        }
+        XCTAssertEqual(tracker.velocity(atRelease: last + 0.1), 0)
+    }
+
     func testNonfiniteSamplesAreRejectedWithoutPoisoningState() {
         let tracker = SwipeTracker()
 
