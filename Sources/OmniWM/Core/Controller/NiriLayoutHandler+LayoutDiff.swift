@@ -48,7 +48,7 @@ extension NiriLayoutHandler {
                 state: state,
                 snapshot: snapshot,
                 isSettled: false,
-                animationTime: pass.engine.animationClock?.now() ?? CACurrentMediaTime()
+                animationTime: pass.engine.sampleTime(in: pass.wsId)
             )
         }
         let diff = relayoutDiff(
@@ -93,7 +93,8 @@ extension NiriLayoutHandler {
         )
         diff.edgeHiddenFrames = edgeHiddenFrames(engine: pass.engine, snapshot: snapshot)
         diff.picturePreparation = picturePreparation(
-            engine: pass.engine, snapshot: snapshot, state: state, isSettled: isSettled
+            engine: pass.engine, snapshot: snapshot, state: state, isSettled: isSettled,
+            time: pass.engine.sampleTime(in: pass.wsId)
         )
         return diff
     }
@@ -292,7 +293,7 @@ extension NiriLayoutHandler {
             scale: snapshot.monitor.scale
         )
 
-        let sampleTime = animationSampleTime(in: pass.wsId)
+        let sampleTime = pass.engine.sampleTime(in: pass.wsId)
         return pass.engine.calculateCombinedLayoutUsingPools(
             in: pass.wsId,
             monitor: pass.monitor,

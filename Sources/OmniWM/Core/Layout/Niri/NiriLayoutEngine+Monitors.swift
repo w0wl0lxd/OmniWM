@@ -90,6 +90,10 @@ extension NiriLayoutEngine {
         monitorForWorkspace(workspaceId)?.refreshRate ?? 60.0
     }
 
+    func sampleTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
+        sampleClock?(workspaceId) ?? CACurrentMediaTime()
+    }
+
     func effectiveVisibleContainerCount(in workspaceId: WorkspaceDescriptor.ID) -> Int {
         effectiveSettings(in: workspaceId).visibleContainerCount
     }

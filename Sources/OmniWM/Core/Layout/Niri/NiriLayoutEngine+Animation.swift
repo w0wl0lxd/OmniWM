@@ -92,7 +92,12 @@ extension NiriLayoutEngine {
         case .horizontal: CGPoint(x: displacement, y: 0)
         case .vertical: CGPoint(x: 0, y: displacement)
         }
-        for col in animatedColumns where !col.offsetMoveAnimCurrent(displacement, orientation: context.orientation) {
+        let time = sampleTime(in: context.workspaceId)
+        for col in animatedColumns where !col.offsetMoveAnimCurrent(
+            displacement,
+            orientation: context.orientation,
+            at: time
+        ) {
             col.animateMoveFrom(
                 displacement: movement,
                 clock: animationClock,
@@ -132,9 +137,11 @@ extension NiriLayoutEngine {
             animatedColumns = cols[..<addedIdx]
             displacement = offset
         }
+        let time = sampleTime(in: context.workspaceId)
         for col in consume animatedColumns where !col.offsetMoveAnimCurrent(
             displacement,
-            orientation: context.orientation
+            orientation: context.orientation,
+            at: time
         ) {
             let movement = switch context.orientation {
             case .horizontal: CGPoint(x: displacement, y: 0)

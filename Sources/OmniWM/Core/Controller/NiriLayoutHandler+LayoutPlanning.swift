@@ -150,7 +150,7 @@ extension NiriLayoutHandler {
             diff.picturePreparation = picturePreparation(
                 engine: engine, snapshot: snapshot, state: snapshot.viewportState,
                 isSettled: isSettled,
-                time: sampledAnimationTime ?? animationSampleTime(in: snapshot.workspaceId)
+                time: sampledAnimationTime ?? engine.sampleTime(in: snapshot.workspaceId)
             )
         }
         let isInteractiveResize = animationTime == nil && engine.interactiveResize?.workspaceId == snapshot.workspaceId
@@ -409,7 +409,7 @@ extension NiriLayoutHandler {
             scale: snapshot.monitor.scale
         )
 
-        let sampleTime = sampledAnimationTime ?? animationSampleTime(in: snapshot.workspaceId)
+        let sampleTime = sampledAnimationTime ?? engine.sampleTime(in: snapshot.workspaceId)
         let offsets = controller?.workspaceManager.animationDriver.renderOffsets(
             in: snapshot.workspaceId,
             semanticOffset: snapshot.viewportState.viewOffset,

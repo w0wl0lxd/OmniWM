@@ -350,7 +350,7 @@ extension AnimationDriver {
         transition: OffsetTransition,
         at time: TimeInterval? = nil
     ) {
-        let time = time ?? sampleTime(in: workspaceId)
+        let time = time ?? mediaTime()
         recordViewportCommitTrace(
             workspaceId: workspaceId,
             previous: previous,

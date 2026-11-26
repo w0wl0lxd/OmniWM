@@ -137,7 +137,7 @@ extension MouseEventHandler {
         guard isLiveEdgeScrolling else { return .open }
         guard liveEdgeScrollReachesColumn(
             at: reference,
-            time: CACurrentMediaTime(),
+            time: engine.sampleTime(in: workspaceId),
             engine: engine,
             workspaceId: workspaceId
         ) else { return .blocked }

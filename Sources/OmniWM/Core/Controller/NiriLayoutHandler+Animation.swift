@@ -60,7 +60,6 @@ extension NiriLayoutHandler {
         let monitor = target.monitor
         let driver = controller.workspaceManager.animationDriver
         let targetTime = driver.advanceSampleTime(in: wsId, to: targetTime)
-        controller.animationClock.beginPresentation(at: targetTime)
 
         let scrollTrace = ScrollTickTrace.shared.isActive
         let animsStart = scrollTrace ? CACurrentMediaTime() : 0
@@ -95,7 +94,6 @@ extension NiriLayoutHandler {
 
         if !animationsOngoing {
             driver.endSampling(in: wsId)
-            controller.animationClock.endPresentation()
             finalizeAnimation()
             controller.layoutRefreshController.hideInactiveWorkspaces(
                 activeWorkspaceIds: activeWorkspaceIds(controller: controller)
@@ -103,10 +101,6 @@ extension NiriLayoutHandler {
             controller.layoutRefreshController.stopScrollAnimation(for: displayId)
             controller.mouseEventHandler.handleNiriAnimationsSettled(in: wsId)
         }
-    }
-
-    func animationSampleTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
-        controller?.workspaceManager.animationDriver.sampleTime(in: workspaceId) ?? CACurrentMediaTime()
     }
 
     private func activeWorkspaceIds(controller: WMController) -> Set<WorkspaceDescriptor.ID> {

@@ -16,6 +16,9 @@ extension NiriLayoutHandler {
         engine.alwaysCenterSingleColumn = alwaysCenterSingleColumn
         engine.renderStyle.tabIndicatorWidth = controller.tabRailStyle.reservedWidth
         engine.animationClock = controller.animationClock
+        engine.sampleClock = { [weak controller] in
+            controller?.workspaceManager.animationDriver.sampleTime(in: $0) ?? CACurrentMediaTime()
+        }
         engine.edgePicturesAvailable = ScreenCapturePermissionMonitor.shared.isGranted
         controller.niriEngine = engine
 

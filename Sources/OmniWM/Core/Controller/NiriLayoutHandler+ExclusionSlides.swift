@@ -244,7 +244,10 @@ extension NiriLayoutHandler {
     }
 
     private func slide(_ column: NiriContainer, from shift: CGFloat, pass: NiriLayoutPass) {
-        guard abs(shift) > 0.5, !column.offsetMoveAnimCurrent(shift, orientation: pass.orientation) else { return }
+        let time = pass.engine.sampleTime(in: pass.wsId)
+        guard abs(shift) > 0.5, !column.offsetMoveAnimCurrent(shift, orientation: pass.orientation, at: time) else {
+            return
+        }
         pass.engine.animateReorderedColumn(column, displacement: shift, context: pass.interactionContext)
     }
 }

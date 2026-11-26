@@ -126,7 +126,7 @@ extension MouseEventHandler {
         liveDragSession?.edgeScroll?.delayTimer?.invalidate()
         liveDragSession?.edgeScroll?.delayTimer = nil
         if !hasPendingLiveColumnAnimation(in: workspaceId, engine: engine)
-            || livePointerIsOverTheGap(in: workspaceId, engine: engine, at: CACurrentMediaTime())
+            || livePointerIsOverTheGap(in: workspaceId, engine: engine, at: engine.sampleTime(in: workspaceId))
         {
             startLiveEdgeHopInterval()
         }
@@ -267,7 +267,7 @@ extension MouseEventHandler {
         return (columns, context)
     }
 
-    func stopLiveEdgeScroll(at time: TimeInterval = CACurrentMediaTime()) {
+    func stopLiveEdgeScroll(at time: TimeInterval? = nil) {
         guard let workspaceId = liveDragSession?.edgeScroll?.workspaceId, isLiveEdgeScrolling else { return }
         liveDragSession?.edgeScroll?.isScrolling = false
         guard let controller else { return }
