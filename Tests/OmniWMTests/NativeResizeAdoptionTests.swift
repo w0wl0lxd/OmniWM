@@ -4738,6 +4738,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
 
             if retiresAtNextPress {
                 fixture.controller.niriLayoutHandler.cancelAnimationMotion(for: fixture.workspaceId)
+                XCTAssertNil(fixture.controller.layoutRefreshController.layoutState.pendingRefresh)
                 fixture.handler.retireNativeTitleBarDragAtInputBoundary()
                 let correction = try XCTUnwrap(fixture.controller.layoutRefreshController.layoutState.pendingRefresh)
                 XCTAssertEqual(correction.reason, .interactiveGesture)
