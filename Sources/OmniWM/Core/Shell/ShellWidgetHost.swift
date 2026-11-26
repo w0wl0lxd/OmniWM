@@ -60,6 +60,10 @@ extension ShellRequest {
     var isHiddenBarActivation: Bool {
         if case .hiddenBarActivate = self { true } else { false }
     }
+
+    var isHiddenBarPanel: Bool {
+        self == .command(.presentation(.hiddenBar))
+    }
 }
 
 enum ShellSettingsPane: String, Sendable {

@@ -102,7 +102,9 @@ extension ShellWidgetHost {
             )
             return
         }
-        if view == .popout, case let .wm(request) = parsed, !request.isHiddenBarActivation {
+        if view == .popout, case let .wm(request) = parsed, !request.isHiddenBarActivation,
+           !(request.isHiddenBarPanel && popout?.widget == hiddenBarWidget)
+        {
             closePopout()
         }
         run(

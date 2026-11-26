@@ -11,7 +11,9 @@ enum WorkspaceBarMenuButton {
 
     static func togglesHiddenBar(_ event: NSEvent?, in window: NSWindow) -> Bool {
         let clicked = command(at: event, in: window)
-        return clicked == ShellRequest.statusMenuCommand || clicked == ShellRequest.hiddenBarPanelCommand
+        if clicked == ShellRequest.statusMenuCommand { return true }
+        guard clicked == ShellRequest.hiddenBarPanelCommand, let event else { return false }
+        return event.type == .leftMouseDown && !event.modifierFlags.contains(.control)
     }
 
     private static func command(at event: NSEvent?, in window: NSWindow) -> String? {
