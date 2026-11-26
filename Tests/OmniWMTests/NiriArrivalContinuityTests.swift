@@ -173,7 +173,8 @@ final class NiriArrivalContinuityTests: XCTestCase {
             )
             let arrival = fixture.addWindow(9_825)
             let start = CACurrentMediaTime()
-            moving.moveAnimation = Self.columnSpring(from: 200, endingAt: start + remaining)
+            let gliding = Self.columnSpring(from: 200, endingAt: start + remaining)
+            moving.moveAnimation = gliding
             let before = try XCTUnwrap(fixture.drawnPositions(at: start)[token])
 
             fixture.layout()
@@ -184,7 +185,16 @@ final class NiriArrivalContinuityTests: XCTestCase {
             XCTAssertEqual(after, before, accuracy: 0.5, "\(remaining)")
             let distance = abs(moving.renderOffset(at: start).x)
             XCTAssertGreaterThan(distance, 100, "\(remaining)")
-            let spring = try XCTUnwrap(moving.moveAnimation?.animation)
+            let restarted = try XCTUnwrap(moving.moveAnimation)
+            let spring = restarted.animation
+            let velocityBefore = Self.pointVelocity(gliding, at: spring.startTime)
+            let velocityAfter = Self.pointVelocity(restarted, at: spring.startTime)
+            XCTAssertEqual(
+                velocityAfter,
+                velocityBefore * Double(restarted.fromOffset / gliding.fromOffset),
+                accuracy: 1e-6 * abs(velocityAfter) + 1e-9,
+                "\(remaining): \(velocityBefore) -> \(velocityAfter) pt/s"
+            )
             let end = spring.startTime + spring.duration
             let last = try XCTUnwrap(fixture.drawnPositions(at: end - 0.001)[token])
             let settled = try XCTUnwrap(fixture.drawnPositions(at: end)[token])
@@ -203,6 +213,10 @@ final class NiriArrivalContinuityTests: XCTestCase {
         column.moveAnimation = Self.columnSpring(from: 100, endingAt: CACurrentMediaTime() - 1)
 
         XCTAssertFalse(column.offsetMoveAnimCurrent(-40, orientation: .horizontal, at: CACurrentMediaTime()))
+    }
+
+    private static func pointVelocity(_ animation: MoveAnimation, at time: TimeInterval) -> Double {
+        Double(animation.fromOffset) * animation.currentVelocity(at: time)
     }
 
     private static func columnSpring(from offset: CGFloat, endingAt end: TimeInterval) -> MoveAnimation {
