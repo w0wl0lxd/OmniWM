@@ -385,7 +385,7 @@ extension HiddenBarController {
         finishActivation(activation)
     }
 
-    private func temporarilyReveal(_ bundleID: String, ownerPID: pid_t, withMenuAccess: Bool = false) -> Bool {
+    func temporarilyReveal(_ bundleID: String, ownerPID: pid_t, withMenuAccess: Bool = false) -> Bool {
         guard settings.effectiveHiddenBarEnabled, hider.available else { return false }
         let hidden = Set(settings.hiddenBar.hiddenBundleIDs)
         let snapshot = HiddenBarRunningAppsSnapshot.current()
@@ -477,6 +477,10 @@ extension HiddenBarController {
         guard !temporarilyRevealed.isEmpty || revealedBundleIDs.isEmpty || takeMenuAccessForReveal() else { return }
         temporarilyRevealed = revealedBundleIDs
         reconcealment.schedule(intervalSeconds: settings.hiddenBar.resolvedRehideIntervalSeconds)
+    }
+
+    var activationBundleID: String? {
+        activeActivation?.bundleID
     }
 
     var temporarilyRevealedBundleIDsForTests: Set<String> {

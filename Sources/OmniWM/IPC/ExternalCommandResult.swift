@@ -8,6 +8,7 @@ enum ExternalCommandResult: Equatable, Sendable, Error {
     case ignoredDisabled
     case ignoredOverview
     case ignoredLayoutMismatch
+    case ignoredMenuBarCovered
     case staleWindowId
     case workspaceAssignmentConflict
     case workspaceStateConflict

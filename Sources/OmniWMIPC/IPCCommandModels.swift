@@ -77,6 +77,7 @@ public enum IPCCommandRequest: Equatable, Sendable {
     case windowState(IPCWindowStateCommand)
     case scratchpad(IPCScratchpadCommand)
     case openMenuAnywhere
+    case hiddenBarReveal(bundleID: String, seconds: Int?)
     case shellAppOpen(appID: String)
     case shellAppNewWindow(appID: String)
 
@@ -126,6 +127,8 @@ public enum IPCCommandRequest: Equatable, Sendable {
             .scratchpad(command.name)
         case .openMenuAnywhere:
             .openMenuAnywhere
+        case .hiddenBarReveal:
+            .hiddenBarReveal
         case .shellAppOpen:
             .shellAppOpen
         case .shellAppNewWindow:

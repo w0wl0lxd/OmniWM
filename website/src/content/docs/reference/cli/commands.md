@@ -212,11 +212,15 @@ Workspace IDs are global, so `switch-workspace 3` targets workspace `3` wherever
 | `command open-menu-anywhere` | — | shared | Open the menu surface |
 | `command toggle-workspace-bar` | — | shared | Toggle workspace bar visibility |
 | `command hidden-bar panel` | — | shared | Toggle the panel containing configured hidden menu-bar items |
+| `command hidden-bar reveal` | `<bundle-id>` | shared | **Unreleased:** available when building from `main`. Show a hidden app's menu-bar items, then hide them again after the Hidden Bar interval |
+| `command hidden-bar reveal` | `<bundle-id> <seconds>` | shared | **Unreleased:** available when building from `main`. Show a hidden app's menu-bar items, then hide them again after 2 to 30 seconds |
 | `command toggle-quake-terminal` | — | shared | Toggle the configured Quake terminal |
 | `command toggle-overview` | — | shared | Open Overview when it is closed, or dismiss it onto the current selection when it is open |
 | `command toggle-system-stats` | — | shared | Toggle the system stats popup when a workspace-bar System Stats button is available |
 
 For example, run `omniwmctl command hidden-bar panel` to show or dismiss the Hidden Bar panel.
+
+`hidden-bar reveal` returns `not_found` when the app is not selected in the Hidden Bar settings or is not running, `disabled` when Hidden Bar is off or unavailable, and `no_change` when macOS keeps the items hidden. Every revealed app shares one timer, which waits while a menu is open: a new reveal restarts it for all of them. A reveal during a Hidden Bar menu or click uses the Hidden Bar interval.
 
 ### Keyboard Modes
 

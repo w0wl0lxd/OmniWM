@@ -54,6 +54,7 @@ struct IPCWindowMarkRequestExecutor {
             return .overviewOpen
         case .executed,
              .ignoredLayoutMismatch,
+             .ignoredMenuBarCovered,
              .staleWindowId,
              .workspaceAssignmentConflict,
              .workspaceStateConflict,

@@ -64,6 +64,10 @@ final class HiddenBarReconcealment {
         }
     }
 
+    func holdsReveal(of bundleID: String) -> Bool {
+        false
+    }
+
     private func run(controller: HiddenBarController, generation: Int, interval: Double) async {
         let startedAt = menuGuardNow()
         var countdown = Countdown(startedAt: startedAt, remaining: .seconds(interval), lastSample: startedAt)

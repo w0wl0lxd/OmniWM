@@ -174,6 +174,22 @@ extension IPCJSONWriter {
         end(125)
     }
 
+    mutating func hiddenBarRevealArguments(_ bundleID: borrowing String, _ seconds: Int?, _ first: inout Bool) throws {
+        self.key("arguments", &first)
+        begin(123)
+        var argumentFirst = true
+        self.key("bundleId", &argumentFirst)
+        try self.value(bundleID)
+        switch seconds {
+        case let fieldValue?:
+            self.key("seconds", &argumentFirst)
+            try self.value(fieldValue)
+        case nil:
+            break
+        }
+        end(125)
+    }
+
     mutating func value(_ value: borrowing IPCCommandRequest) throws {
         begin(123)
         var first = true
@@ -203,6 +219,8 @@ extension IPCJSONWriter {
             try self.argument("mode", argument.rawValue, &first)
         case let .windowSwitcher(direction, scope):
             try windowSwitcherArguments(direction, scope, &first)
+        case let .hiddenBarReveal(bundleID, seconds):
+            try hiddenBarRevealArguments(bundleID, seconds, &first)
         case .monitorFocus,
              .openCommandPalette,
              .raiseAllFloatingWindows,
@@ -243,33 +261,6 @@ extension IPCJSONWriter {
             self.key("name", &first)
             try self.value("status")
             end(125)
-        }
-    }
-
-    mutating func fields0(_ value: borrowing IPCQuerySelectors, _ first: inout Bool) throws {
-        if let fieldValue = value.app {
-            self.key("app", &first)
-            try self.value(fieldValue)
-        }
-        if let fieldValue = value.bundleId {
-            self.key("bundleId", &first)
-            try self.value(fieldValue)
-        }
-        if let fieldValue = value.current {
-            self.key("current", &first)
-            try self.value(fieldValue)
-        }
-        if let fieldValue = value.display {
-            self.key("display", &first)
-            try self.value(fieldValue)
-        }
-        if let fieldValue = value.floating {
-            self.key("floating", &first)
-            try self.value(fieldValue)
-        }
-        if let fieldValue = value.focused {
-            self.key("focused", &first)
-            try self.value(fieldValue)
         }
     }
 }

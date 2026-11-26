@@ -56,6 +56,7 @@ enum CLIRenderer {
             return .internalError
         case .disabled,
              .overviewOpen,
+             .menuBarCovered,
              .layoutMismatch,
              .protocolMismatch,
              .unauthorized,

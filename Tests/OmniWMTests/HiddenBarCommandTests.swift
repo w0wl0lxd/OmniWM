@@ -115,6 +115,99 @@ final class HiddenBarCommandTests: XCTestCase {
     }
 
     @MainActor
+    func testRevealRefusesWhileTheWorkspaceBarCoversTheMenuBar() throws {
+        let fixture = try makeRevealFixture()
+        fixture.hiddenBar.applyConcealment()
+        let writes = fixture.menuBar.writes
+
+        XCTAssertEqual(
+            fixture.hiddenBar.reveal(fixture.bundleID, seconds: nil, menuBarCovered: true),
+            .ignoredMenuBarCovered
+        )
+        XCTAssertEqual(fixture.menuBar.writes, writes)
+        XCTAssertEqual(fixture.menuBar.accesses, [])
+        XCTAssertTrue(fixture.hiddenBar.revealedBundleIDs.isEmpty)
+        XCTAssertNil(fixture.hiddenBar.reconcealment.task)
+
+        let bar = fixture.settings.workspaceBar
+        let plain = makeMonitor(hasNotch: false)
+        let notched = makeMonitor(hasNotch: true)
+        bar.position = .overlappingMenuBar
+        bar.fullWidth = false
+        XCTAssertFalse(WorkspaceBarManager.coversStatusItems(bar.resolved(for: plain), on: plain))
+        bar.fullWidth = true
+        XCTAssertTrue(WorkspaceBarManager.coversStatusItems(bar.resolved(for: plain), on: plain))
+        bar.fullWidthNotchMode = .moveBelowMenuBar
+        XCTAssertFalse(WorkspaceBarManager.coversStatusItems(bar.resolved(for: notched), on: notched))
+        bar.position = .belowMenuBar
+        XCTAssertFalse(WorkspaceBarManager.coversStatusItems(bar.resolved(for: plain), on: plain))
+    }
+
+    @MainActor
+    func testARevealThatFailsAfterItsWriteConcealsTheItemAgain() throws {
+        let fixture = try makeRevealFixture()
+        fixture.hiddenBar.applyConcealment()
+        fixture.menuBar.throwsAfterWrite = true
+
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID]), .noChange)
+        XCTAssertEqual(try fixture.isAllowed(), false)
+        XCTAssertTrue(fixture.hiddenBar.revealedBundleIDs.isEmpty)
+        XCTAssertNil(fixture.hiddenBar.reconcealment.task)
+        XCTAssertEqual(fixture.menuBar.accesses, [true, false])
+    }
+
+    @MainActor
+    func testALaterRevealNeverShortensAnEarlierOneAndTheTotalIsCapped() async throws {
+        let fixture = try makeRevealFixture()
+        fixture.hiddenBar.applyConcealment()
+
+        var startedAt = fixture.now
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "30"]), .executed)
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "2"]), .executed)
+        await fixture.hiddenBar.reconcealment.task?.value
+        XCTAssertGreaterThanOrEqual(startedAt.duration(to: fixture.now), .seconds(30))
+        XCTAssertEqual(try fixture.isAllowed(), false)
+
+        startedAt = fixture.now
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "30"]), .executed)
+        fixture.now = fixture.now.advanced(by: .seconds(20))
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "30"]), .executed)
+        await fixture.hiddenBar.reconcealment.task?.value
+        let elapsed = startedAt.duration(to: fixture.now)
+        XCTAssertGreaterThanOrEqual(elapsed, .seconds(30))
+        XCTAssertLessThan(elapsed, .seconds(33))
+        XCTAssertEqual(try fixture.isAllowed(), false)
+    }
+
+    @MainActor
+    func testATimerRestartedByAMenuReleaseKeepsTheRevealTime() async throws {
+        let fixture = try makeRevealFixture()
+        fixture.hiddenBar.applyConcealment()
+        let startedAt = fixture.now
+        XCTAssertEqual(try fixture.reveal([fixture.bundleID, "20"]), .executed)
+
+        fixture.hiddenBar.reconcealment.cancel(reason: .cancelled)
+        XCTAssertTrue(fixture.hiddenBar.reconcealment.holdsReveal(of: fixture.bundleID))
+        fixture.hiddenBar.reconcealment.schedule(intervalSeconds: 2)
+        await fixture.hiddenBar.reconcealment.task?.value
+        XCTAssertGreaterThanOrEqual(startedAt.duration(to: fixture.now), .seconds(20))
+        XCTAssertFalse(fixture.hiddenBar.reconcealment.holdsReveal(of: fixture.bundleID))
+        XCTAssertEqual(try fixture.isAllowed(), false)
+    }
+
+    private func makeMonitor(hasNotch: Bool) -> Monitor {
+        Monitor(
+            id: Monitor.ID(displayId: 1),
+            displayId: 1,
+            frame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 950),
+            hasNotch: hasNotch,
+            notchRange: hasNotch ? 656 ... 856 : nil,
+            name: "Test"
+        )
+    }
+
+    @MainActor
     private func makeRevealFixture() throws -> RevealFixture {
         let fixture = try RevealFixture(settings: makeSettingsStore())
         addTeardownBlock { @MainActor in
@@ -151,6 +244,7 @@ final class HiddenBarCommandTests: XCTestCase {
         var writes = 0
         var accesses: [Bool] = []
         var ignoresWrites = false
+        var throwsAfterWrite = false
 
         init(data: Data) {
             self.data = data
@@ -189,6 +283,10 @@ final class HiddenBarCommandTests: XCTestCase {
                 preferences: NativeMenuBarPreferences(read: { menuBar.data }, write: { changed in
                     menuBar.writes += 1
                     if !menuBar.ignoresWrites { menuBar.data = changed }
+                    if menuBar.throwsAfterWrite {
+                        menuBar.throwsAfterWrite = false
+                        throw CocoaError(.fileWriteUnknown)
+                    }
                 }),
                 journalURL: journal
             ), setMenuAccess: {

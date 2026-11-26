@@ -202,6 +202,10 @@ extension WorkspaceBarManager {
     static func coversAppMenus(_ resolved: ResolvedBarSettings) -> Bool {
         hidesMenuBar(resolved) || resolved.notchMode == .fillLeftOfNotch
     }
+
+    static func coversStatusItems(_ resolved: ResolvedBarSettings, on monitor: Monitor) -> Bool {
+        false
+    }
 }
 
 extension SkyLight {
