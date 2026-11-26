@@ -406,7 +406,7 @@ extension NiriContainer {
             return false
         }
         let value = anim.animation.value(at: time)
-        guard value > 0.001 else { return false }
+        guard value >= 0.99 else { return false }
         moveAnimation = MoveAnimation(
             animation: anim.animation,
             fromOffset: anim.fromOffset + offset / CGFloat(value)
