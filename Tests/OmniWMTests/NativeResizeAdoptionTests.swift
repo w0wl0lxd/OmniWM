@@ -4561,7 +4561,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
 
     func testAClickThatWigglesLessThanFourPointsLeavesTheSlideRunning() throws {
         for (index, exact) in [true, false].enumerated() {
-            let fixture = try makeFixture(.niri, pid: pid_t(835_301 + index))
+            let fixture = try makeFixture(.niri, pid: pid_t(835_501 + index))
             let token = fixture.tokens[0]
             let press = try pressDuringSlide(fixture, token, exact: exact)
 
@@ -4590,7 +4590,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
     }
 
     func testADragThatPassesFourPointsDuringASlideEndsOnlyThatSlide() throws {
-        let fixture = try makeFixture(.niri, pid: 835_303)
+        let fixture = try makeFixture(.niri, pid: 835_503)
         let token = fixture.tokens[0]
         let press = try pressDuringSlide(fixture, token, exact: true)
 
@@ -4611,7 +4611,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
     }
 
     func testAWindowDisplacedByAWiggleIsCorrectedWhenTheSlideEndsBeforeTheRelease() throws {
-        let fixture = try makeFixture(.niri, pid: 835_304)
+        let fixture = try makeFixture(.niri, pid: 835_504)
         let token = fixture.tokens[0]
         let press = try pressDuringSlide(fixture, token, exact: true)
         fixture.handler.dispatchMouseDragged(at: slideDragLocation(from: press, distance: 3))
@@ -4630,7 +4630,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
 
     func testAnInjectedDragWithoutAPressOrEventNumberEndsTheSlide() throws {
         for (index, recordsPress) in [true, false].enumerated() {
-            let fixture = try makeFixture(.niri, pid: pid_t(835_305 + index))
+            let fixture = try makeFixture(.niri, pid: pid_t(835_505 + index))
             let token = fixture.tokens[0]
             let press = try pressDuringSlide(fixture, token, exact: false)
             if !recordsPress { fixture.handler.state.leftPressLocation = nil }
@@ -4649,7 +4649,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
     }
 
     func testAWiggleReportedThroughTheAnnotatedTapLeavesTheSlideRunning() throws {
-        let fixture = try makeFixture(.niri, pid: 835_307)
+        let fixture = try makeFixture(.niri, pid: 835_507)
         let token = fixture.tokens[0]
         let start = try fixture.frame(token)
         let wiggle = slideDragLocation(from: start.center, distance: 3)
@@ -4685,7 +4685,7 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
 
     func testAWiggleReleasedBeforeItsAnnotatedDragKeepsTheWindowCorrectable() throws {
         for (index, slideEndsFirst) in [false, true].enumerated() {
-            let fixture = try makeFixture(.niri, pid: pid_t(835_308 + index))
+            let fixture = try makeFixture(.niri, pid: pid_t(835_508 + index))
             let token = fixture.tokens[0]
             let start = try fixture.frame(token)
             let wiggle = slideDragLocation(from: start.center, distance: 3)
@@ -4726,8 +4726,33 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
         }
     }
 
+    func testAWiggledPressRetiredWithoutAReleaseDuringASlideIsCorrected() throws {
+        for (index, retiresAtNextPress) in [false, true].enumerated() {
+            let fixture = try makeFixture(.niri, pid: pid_t(835_511 + index))
+            let token = fixture.tokens[0]
+            let press = try pressDuringSlide(fixture, token, exact: true)
+            fixture.handler.dispatchMouseDragged(at: slideDragLocation(from: press, distance: 3))
+            XCTAssertTrue(fixture.manager.animationDriver.hasMotion(in: fixture.workspaceId))
+            XCTAssertEqual(fixture.phase, .armed)
+            XCTAssertFalse(fixture.controller.axManager.frameLedger.forceApplyWindowIds.contains(token.windowId))
+
+            if retiresAtNextPress {
+                fixture.handler.retireNativeTitleBarDragAtInputBoundary()
+            } else {
+                fixture.handler.handleAppVisibilityChanged()
+            }
+
+            XCTAssertNil(fixture.handler.state.nativeTitleBarDrag)
+            XCTAssertTrue(
+                fixture.controller.axManager.frameLedger.forceApplyWindowIds.contains(token.windowId),
+                "retiresAtNextPress: \(retiresAtNextPress)"
+            )
+            XCTAssertNil(fixture.controller.axManager.lastAppliedFrame(for: token.windowId))
+        }
+    }
+
     func testAnEdgeResizeWiggleReleasedDuringASlideLeavesTheSlideAndTheWidth() throws {
-        let fixture = try makeFixture(.niri, pid: 835_310)
+        let fixture = try makeFixture(.niri, pid: 835_510)
         let token = fixture.tokens[0]
         let pressedFrame = try fixture.frame(token)
         let edge = CGPoint(x: pressedFrame.maxX - FrameTolerance.frameWrite, y: pressedFrame.midY)
