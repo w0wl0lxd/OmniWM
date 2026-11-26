@@ -308,7 +308,7 @@ extension NiriLayoutHandler {
         context: NiriInteractionContext,
         state: ViewportState
     ) {
-        let now = operation.engine.animationClock?.now() ?? CACurrentMediaTime()
+        let now = operation.engine.animationTime(in: operation.wsId)
         operation.engine.stopWindowMoveAnimations(in: operation.wsId)
         let settled = operation.settledFrames(state: state)
         operation.engine.animateRestoredWidths(from: drawn, settled: settled, context: context)

@@ -343,7 +343,7 @@ extension NiriContainer {
             return
         }
 
-        let now = clock?.now() ?? CACurrentMediaTime()
+        let now = animationStartTime(clock: clock)
         let currentOffset = renderOffset(at: now)
         let currentValue = switch orientation {
         case .horizontal: currentOffset.x
