@@ -12,6 +12,11 @@ extension MouseEventHandler {
         var rawDeltaY: CGFloat
         var previousTimestamp: TimeInterval
 
+        var reachesRecognitionThreshold: Bool {
+            let threshold = TrackpadGestureIntent.recognitionThreshold
+            return cumulativeX * cumulativeX + cumulativeY * cumulativeY >= threshold * threshold
+        }
+
         func traceRecognition(_ mode: TrackpadGestureMode, timestamp: TimeInterval) {
             TrackpadScrollTrace.record(.recognition(
                 mode: mode, x: Double(cumulativeX), y: Double(cumulativeY),
@@ -291,17 +296,17 @@ extension MouseEventHandler {
         }
 
         if tapInputs.gesturePhase == .armed {
-            state.heldGestureFrame = nil
-            let distanceSquared = metrics.cumulativeX * metrics.cumulativeX
-                + metrics.cumulativeY * metrics.cumulativeY
-            let threshold = TrackpadGestureIntent.recognitionThreshold
-            guard distanceSquared >= threshold * threshold,
+            guard metrics.reachesRecognitionThreshold || !state.heldGestureFrames.isEmpty,
                   !holdGestureForMoreFingers(metrics: metrics, lockedContext: lockedContext, timestamp: timestamp)
             else {
                 rememberGestureSample(average, at: timestamp)
                 return
             }
-            guard commitGestureMode(metrics: metrics, lockedContext: lockedContext, timestamp: timestamp) else {
+            commitHeldGesture()
+            guard tapInputs.gesturePhase == .committed
+                || (tapInputs.gesturePhase == .armed && metrics.reachesRecognitionThreshold
+                    && commitGestureMode(metrics: metrics, lockedContext: lockedContext, timestamp: timestamp))
+            else {
                 if tapInputs.gesturePhase == .armed { rememberGestureSample(average, at: timestamp) }
                 return
             }

@@ -195,7 +195,7 @@ struct MouseInputState {
     var gestureLastAverageY: CGFloat = 0.0
     var gestureLastTimestamp: TimeInterval = 0
     var gestureArmedTimestamp: TimeInterval = 0
-    var heldGestureFrame: (metrics: MouseEventHandler.GestureFrameMetrics, timestamp: TimeInterval)?
+    var heldGestureFrames: [(metrics: MouseEventHandler.GestureFrameMetrics, timestamp: TimeInterval)] = []
     var lockedGestureContext: LockedGestureContext?
     var activeGestureMode: TrackpadGestureMode?
     var gestureFingerCountMismatchSince: TimeInterval?

@@ -180,10 +180,15 @@ enum TrackpadGestureIntent {
     static func awaitsMoreFingers(
         _ config: Config,
         fingerCount: Int,
-        overviewAction: OverviewGestureAction?
+        overviewAction: OverviewGestureAction?,
+        columnContextAvailable: Bool
     ) -> Bool {
         GestureFingerCount.allCases.contains {
             allowsRearm(config, from: fingerCount, overviewAction: overviewAction, to: $0.rawValue)
+                && hasCandidateMode(
+                    config, fingerCount: $0.rawValue,
+                    columnContextAvailable: columnContextAvailable, windowContextAvailable: true
+                )
         }
     }
 

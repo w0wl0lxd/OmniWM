@@ -88,25 +88,38 @@ extension MouseEventHandler {
         timestamp: TimeInterval
     ) -> Bool {
         guard timestamp - state.gestureArmedTimestamp < TrackpadGestureIntent.fingerLandingSettleInterval,
-              let config = trackpadGestureConfig,
+              let controller, let config = trackpadGestureConfig,
+              let workspace = controller.workspaceManager.descriptor(for: lockedContext.workspaceId),
               TrackpadGestureIntent.awaitsMoreFingers(
-                  config, fingerCount: lockedContext.fingerCount, overviewAction: lockedContext.overviewAction
+                  config, fingerCount: lockedContext.fingerCount, overviewAction: lockedContext.overviewAction,
+                  columnContextAvailable: supportsColumnScroll(
+                      controller.settings.workspaces.layoutType(for: workspace.name), in: controller
+                  )
               )
         else { return false }
-        state.heldGestureFrame = (metrics, timestamp)
+        state.heldGestureFrames.append((metrics, timestamp))
         return true
     }
 
     func commitHeldGesture() {
-        guard tapInputs.gesturePhase == .armed,
-              let held = state.heldGestureFrame,
-              let lockedContext = state.lockedGestureContext,
+        let held = state.heldGestureFrames
+        state.heldGestureFrames = []
+        guard let lockedContext = state.lockedGestureContext,
               let monitor = controller?.workspaceManager.monitor(byId: lockedContext.monitorId),
-              commitGestureMode(metrics: held.metrics, lockedContext: lockedContext, timestamp: held.timestamp)
+              let start = held.firstIndex(where: { frame in
+                  tapInputs.gesturePhase == .armed && frame.metrics.reachesRecognitionThreshold
+                      && commitGestureMode(
+                          metrics: frame.metrics,
+                          lockedContext: lockedContext,
+                          timestamp: frame.timestamp
+                      )
+              })
         else { return }
-        dispatchCommittedGestureFrame(
-            metrics: held.metrics, lockedContext: lockedContext, monitor: monitor, timestamp: held.timestamp
-        )
+        for frame in held[start...] where tapInputs.gesturePhase == .committed {
+            dispatchCommittedGestureFrame(
+                metrics: frame.metrics, lockedContext: lockedContext, monitor: monitor, timestamp: frame.timestamp
+            )
+        }
     }
 
     func dispatchCommittedGestureFrame(
@@ -465,7 +478,7 @@ extension MouseEventHandler {
         state.gestureLastAverageY = 0.0
         state.gestureLastTimestamp = 0
         state.gestureArmedTimestamp = 0
-        state.heldGestureFrame = nil
+        state.heldGestureFrames = []
         state.lockedGestureContext = nil
         state.activeGestureMode = nil
         state.gestureFingerCountMismatchSince = nil
