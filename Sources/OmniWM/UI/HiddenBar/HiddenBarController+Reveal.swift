@@ -12,9 +12,8 @@ extension HiddenBarController {
               let owner = running.first(where: { $0.bundleID == bundleID })
         else { return .notFound }
         guard !menuBarCovered else { return .ignoredMenuBarCovered }
-        let wasRevealed = revealedBundleIDs.contains(bundleID)
         guard temporarilyReveal(bundleID, ownerPID: owner.pid, withMenuAccess: true) else {
-            if !wasRevealed {
+            if menuSession.bundleID != bundleID {
                 concealRevealed([bundleID])
             }
             return .noChange

@@ -228,9 +228,11 @@ For example, run `omniwmctl command hidden-bar panel` to show or dismiss the Hid
 - `menu_bar_covered` while a full-width workspace bar over the menu bar is visible on any display, because that bar would cover the items. Nothing changes.
 - `no_change` when macOS keeps the items hidden, when the app has no entry in the macOS menu bar settings, or when OmniWM cannot show the menu bar.
 
-Every revealed app shares one timer, which waits while a menu is open. A new reveal never shortens the time left, and repeated reveals cannot extend it past 30 seconds after the first one. After a reveal during a Hidden Bar menu or click, the items hide at the later of two times: the Hidden Bar interval after that menu or click ends, or the end of the requested time. Closing a Hidden Bar menu of the revealed app does not hide it before the requested time.
+Every revealed app shares one timer, which waits while a menu is open. A new reveal never shortens the time left. Within one reveal window, repeated reveals cannot extend it past 30 seconds after the first reveal, plus the time a menu is open. The window ends at its requested time, so a later reveal starts a new window even while the items still show. The timer runs for at least 2 seconds, so a reveal near the end of a window can add up to 2 seconds. After a reveal during a Hidden Bar menu or click, the items hide at the later of two times: the Hidden Bar interval after that menu or click ends, or the end of the requested time. Closing a Hidden Bar menu of the revealed app does not hide it before the requested time.
 
 When the workspace bar hides the macOS menu bar, a reveal shows the menu bar on every display until the items hide again. Each display loses the menu bar height while it shows, so tiled windows can resize when it shows and again when it hides.
+
+The `menu_bar_covered` check looks at the workspace bar only when the request arrives. A bar that appears during the reveal can still cover the items: an auto-hide full-width bar that shows when the pointer reaches the top edge of the screen, or a bar that `toggle-workspace-bar` shows. The check counts only full-width bars. A bar that is not full width uses its configured window level, so at the popup level it can likely cover the items when it reaches the status area. The command does not refuse that case.
 
 ### Keyboard Modes
 

@@ -139,6 +139,7 @@ final class HiddenBarReconcealment {
             )
             countdown.lastSample = now
             countdown.previousMenuOpen = menuOpen
+            deadline = now.advanced(by: countdown.remaining)
             guard !recordMenuGuardResult(menuOpen, controller: controller, countdown: &countdown) else { return false }
         }
         return !Task.isCancelled && generation == self.generation
