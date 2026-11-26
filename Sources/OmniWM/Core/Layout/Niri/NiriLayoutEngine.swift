@@ -60,7 +60,7 @@ final class NiriLayoutEngine {
 
     var windowMovementAnimationConfig: SpringConfig = .niriWindowMovement
     var animationClock: AnimationClock?
-    var sampleClock: (@MainActor (WorkspaceDescriptor.ID) -> TimeInterval)?
+    var sampleClock: ((WorkspaceDescriptor.ID) -> TimeInterval)?
     var isMutationSanctioned = true
 
     func assertSanctionedMutation(_ operation: StaticString = #function) {
