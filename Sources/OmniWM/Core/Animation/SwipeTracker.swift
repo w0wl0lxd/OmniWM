@@ -65,7 +65,11 @@ final class SwipeTracker {
               let last = history.last,
               last.timestamp > timestamp - historyLimit
         else { return 0 }
-        return velocity()
+        guard last.delta == 0 else { return velocity() }
+        let kept = history.filter { $0.timestamp > timestamp - historyLimit }
+        guard let first = kept.first, timestamp > first.timestamp else { return 0 }
+        let velocity = kept.reduce(0.0) { $0 + $1.delta } / (timestamp - first.timestamp)
+        return velocity.isFinite ? velocity : 0
     }
 
     private func trimHistory(currentTime: TimeInterval) {
