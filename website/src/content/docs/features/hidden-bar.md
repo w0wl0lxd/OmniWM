@@ -14,7 +14,7 @@ Hidden Bar conceals selected menu-bar icons and lets you reach them from a panel
 - Right-click (or Option-click) the OmniWM menu bar icon to open the Hidden Icons Bar. Click an app icon to open its menu in an OmniShell dropdown beneath that icon. The icon strip stays open; apps without a menu retain their native activation behavior.
 - Menu checkmarks, shortcuts, disabled commands and submenus are preserved. Click a submenu to enter it and **Back** to return. Click outside or press Escape to dismiss the strip and menu.
 - Revealed icons re-hide automatically after a configurable interval — 5 seconds by default.
-- **Unreleased:** available when building from `main`. [`omniwmctl command hidden-bar reveal <bundle-id> [seconds]`](/reference/cli/commands/#ui-toggles) shows one hidden app for 2 to 30 seconds, so a script can surface an icon that needs attention.
+- **Unreleased:** available when building from `main`. [`omniwmctl command hidden-bar reveal <bundle-id> [seconds]`](/reference/cli/commands/#ui-toggles) shows all items of one hidden app for 2 to 30 seconds, so a script can surface an icon that needs attention. It refuses with `menu_bar_covered` while a full-width workspace bar covers the menu bar.
 - An optional global hotkey is available and starts unassigned.
 - The panel is drawn by the `hidden-bar` [OmniShell](/omnishell/configuration/bars-drawers/#hidden-bar-menus) widget and can be navigated with Tab and the arrow keys.
 

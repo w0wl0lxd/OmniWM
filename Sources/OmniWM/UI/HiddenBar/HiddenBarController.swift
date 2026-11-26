@@ -223,7 +223,7 @@ final class HiddenBarController {
         disposition: HiddenBarMenuSession.RevealDisposition = .conceal
     ) {
         if disposition == .conceal {
-            concealRevealed([bundleID])
+            concealRevealed(reconcealment.holdsReveal(of: bundleID) ? [] : [bundleID])
         }
         if !temporarilyRevealed.isEmpty {
             reconcealment.schedule(intervalSeconds: settings.hiddenBar.resolvedRehideIntervalSeconds)
@@ -385,21 +385,7 @@ extension HiddenBarController {
         finishActivation(activation)
     }
 
-    func reveal(_ bundleID: String, seconds: Int?) -> ExternalCommandResult {
-        guard settings.effectiveHiddenBarEnabled, hider.available else { return .ignoredDisabled }
-        let running = HiddenBarRunningAppsSnapshot.current().candidates
-        guard settings.hiddenBar.hiddenBundleIDs.contains(bundleID),
-              let owner = running.first(where: { $0.bundleID == bundleID })
-        else { return .notFound }
-        guard temporarilyReveal(bundleID, ownerPID: owner.pid, withMenuAccess: true) else { return .noChange }
-        if activeActivation == nil, menuSession.bundleID == nil {
-            let interval = seconds.map(Double.init) ?? settings.hiddenBar.resolvedRehideIntervalSeconds
-            reconcealment.schedule(intervalSeconds: interval)
-        }
-        return .executed
-    }
-
-    private func temporarilyReveal(_ bundleID: String, ownerPID: pid_t, withMenuAccess: Bool = false) -> Bool {
+    func temporarilyReveal(_ bundleID: String, ownerPID: pid_t, withMenuAccess: Bool = false) -> Bool {
         guard settings.effectiveHiddenBarEnabled, hider.available else { return false }
         let hidden = Set(settings.hiddenBar.hiddenBundleIDs)
         let snapshot = HiddenBarRunningAppsSnapshot.current()
@@ -475,6 +461,7 @@ extension HiddenBarController {
 
     private func clearTemporaryReveals() {
         reconcealment.cancel(reason: .cancelled)
+        reconcealment.releaseHeldReveals()
         activationGeneration += 1
         activationTask?.cancel()
         activationTask = nil
@@ -491,6 +478,10 @@ extension HiddenBarController {
         guard !temporarilyRevealed.isEmpty || revealedBundleIDs.isEmpty || takeMenuAccessForReveal() else { return }
         temporarilyRevealed = revealedBundleIDs
         reconcealment.schedule(intervalSeconds: settings.hiddenBar.resolvedRehideIntervalSeconds)
+    }
+
+    var activationBundleID: String? {
+        activeActivation?.bundleID
     }
 
     var temporarilyRevealedBundleIDsForTests: Set<String> {

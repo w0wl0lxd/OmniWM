@@ -344,7 +344,11 @@ extension IPCCommandRouter {
         if let guardResult = IPCCommandValidation.controllerState(controller) {
             return guardResult
         }
-        return controller.hiddenBarController.reveal(bundleID, seconds: seconds)
+        return controller.hiddenBarController.reveal(
+            bundleID,
+            seconds: seconds,
+            menuBarCovered: controller.isMenuBarCoveredByWorkspaceBar()
+        )
     }
 
     private func advanceWindowSwitcher(

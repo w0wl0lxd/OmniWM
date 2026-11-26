@@ -59,7 +59,8 @@ final class CommandPaletteActionExecutor {
                     String(localized: "This feature is disabled.")
                 case .ignoredOverview:
                     String(localized: "The command is unavailable while Overview is open.")
-                case .ignoredLayoutMismatch:
+                case .ignoredLayoutMismatch,
+                     .ignoredMenuBarCovered:
                     String(localized: "The command is unavailable for the current layout.")
                 case .noChange:
                     String(localized: "The command made no change.")

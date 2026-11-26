@@ -261,6 +261,8 @@ actor IPCApplicationBridge {
             return .failure(id: id, kind: kind, status: .ignored, code: .overviewOpen)
         case .ignoredLayoutMismatch:
             return .failure(id: id, kind: kind, status: .ignored, code: .layoutMismatch)
+        case .ignoredMenuBarCovered:
+            return .failure(id: id, kind: kind, status: .ignored, code: .menuBarCovered)
         case .staleWindowId:
             return .failure(id: id, kind: kind, code: .staleWindowId)
         case .workspaceAssignmentConflict:

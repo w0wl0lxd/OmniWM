@@ -86,6 +86,7 @@ public enum IPCErrorCode: String, Codable, Equatable, Sendable, Error {
     case disabled = "ignored_disabled"
     case overviewOpen = "ignored_overview"
     case layoutMismatch = "layout_mismatch"
+    case menuBarCovered = "menu_bar_covered"
     case unauthorized = "unauthorized"
     case staleWindowId = "stale_window_id"
     case notFound = "not_found"

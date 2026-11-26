@@ -293,6 +293,7 @@ This envelope is produced locally by the CLI, so it does not include IPC fields 
 | `ignored_disabled` | Window manager is disabled, or the requested Overview or Quake Terminal feature is off |
 | `ignored_overview` | Overview is open, so `CommandHandler` rejects external/IPC commands (except `toggle-overview`) before normal execution |
 | `layout_mismatch` | Command incompatible with the active workspace layout |
+| `menu_bar_covered` | `hidden-bar reveal` refused because a full-width workspace bar covers the menu bar; status is `ignored` |
 | `unauthorized` | Missing or invalid authorization token |
 | `stale_window_id` | Well-formed window ID belongs to a different IPC session |
 | `not_found` | Target window, workspace, monitor, or rule does not exist |

@@ -14,11 +14,19 @@ final class HiddenBarReconcealment {
         var consecutiveUnknownStates = 0
     }
 
+    private struct HeldReveal {
+        let bundleIDs: Set<String>
+        let start: ContinuousClock.Instant
+        let end: ContinuousClock.Instant
+    }
+
     private weak var controller: HiddenBarController?
     private let itemService: MenuBarItemService
     private let performance: HiddenBarPerformanceCapture
     private(set) var task: Task<Void, Never>?
     private var generation = 0
+    private var deadline: ContinuousClock.Instant?
+    private var heldReveal: HeldReveal?
     var menuGuardSleeper: @MainActor (Duration) async throws -> Void = {
         try await Task.sleep(for: $0)
     }
@@ -56,12 +64,43 @@ final class HiddenBarReconcealment {
         task?.cancel()
         generation += 1
         let generation = generation
-        let interval = HiddenBarSettingsPolicy.validatedRehideIntervalSeconds(intervalSeconds)
+        let interval = max(
+            HiddenBarSettingsPolicy.validatedRehideIntervalSeconds(intervalSeconds),
+            seconds(until: heldReveal?.end)
+        )
+        deadline = menuGuardNow().advanced(by: .seconds(interval))
         performance.recordTaskStarted()
         task = Task { @MainActor [weak controller] in
             guard let controller else { return }
             await controller.reconcealment.run(controller: controller, generation: generation, interval: interval)
         }
+    }
+
+    func holdReveal(of bundleID: String, seconds: Double, cap: Duration) {
+        let now = menuGuardNow()
+        let held = heldReveal.flatMap { $0.end > now ? $0 : nil }
+        let start = held?.start ?? now
+        let requested = min(now.advanced(by: .seconds(seconds)), start.advanced(by: cap))
+        let end = [requested, held?.end, task == nil ? nil : deadline].compactMap { $0 }.max() ?? requested
+        heldReveal = HeldReveal(bundleIDs: (held?.bundleIDs ?? []).union([bundleID]), start: start, end: end)
+    }
+
+    func holdsReveal(of bundleID: String) -> Bool {
+        guard let heldReveal, heldReveal.end > menuGuardNow() else { return false }
+        return heldReveal.bundleIDs.contains(bundleID)
+    }
+
+    func scheduleHeldReveal() {
+        schedule(intervalSeconds: seconds(until: heldReveal?.end))
+    }
+
+    func releaseHeldReveals() {
+        heldReveal = nil
+    }
+
+    private func seconds(until end: ContinuousClock.Instant?) -> Double {
+        guard let end else { return 0 }
+        return max(0, menuGuardNow().duration(to: end) / .seconds(1))
     }
 
     private func run(controller: HiddenBarController, generation: Int, interval: Double) async {
