@@ -15,7 +15,11 @@ extension MouseEventHandler {
               let entry = controller.workspaceManager.entry(for: drag.token),
               entry.mode == .tiling
         else {
-            discardNativeTitleBarDragState()
+            if drag.phase == .armed, state.leftPressWasDragged {
+                clearNativeTitleBarDrag()
+            } else {
+                discardNativeTitleBarDragState()
+            }
             return
         }
         if drag.phase == .awaitingFrameChange,
@@ -90,8 +94,9 @@ extension MouseEventHandler {
             discardNativeTitleBarDragState()
             return
         }
+        let pressWasDragged = state.leftPressWasDragged
         discardNativeTitleBarDragState()
-        if drag.phase != .armed || drag.receivedFrameChange,
+        if drag.phase != .armed || drag.receivedFrameChange || pressWasDragged,
            let controller,
            controller.workspaceManager.entry(for: drag.token)?.mode == .tiling
         {
