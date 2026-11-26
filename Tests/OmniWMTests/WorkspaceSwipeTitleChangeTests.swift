@@ -104,6 +104,34 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
         XCTAssertFalse(fixture.swipe.hasPresentation)
     }
 
+    func testExplicitRuleApplyThatMovesWindowRetiresSwipe() async throws {
+        let fixture = try fixture()
+        let destination = try XCTUnwrap(fixture.manager.workspaceId(for: "2", createIfMissing: false))
+        beginSwipe(fixture)
+        reportRuleDecision(title: "Renamed", disposition: .managed, workspaceName: "2", in: fixture)
+
+        let outcome = await fixture.controller.reevaluateWindowRules(
+            for: [.window(Self.token)], context: .explicitRuleApply
+        )
+
+        XCTAssertTrue(outcome.relayoutNeeded)
+        XCTAssertEqual(fixture.manager.entry(for: Self.token)?.workspaceId, destination)
+        XCTAssertFalse(fixture.swipe.hasPresentation)
+    }
+
+    func testRuleReevaluationThatChangesRuleEffectsRetiresSwipe() async throws {
+        let fixture = try fixture()
+        beginSwipe(fixture)
+        let ruleEffects = ManagedWindowRuleEffects(minWidth: 400)
+        reportRuleDecision(title: "Renamed", disposition: .managed, ruleEffects: ruleEffects, in: fixture)
+
+        let outcome = await fixture.controller.reevaluateWindowRules(for: [.window(Self.token)])
+
+        XCTAssertTrue(outcome.relayoutNeeded)
+        XCTAssertEqual(fixture.manager.entry(for: Self.token)?.ruleEffects, ruleEffects)
+        XCTAssertFalse(fixture.swipe.hasPresentation)
+    }
+
     func testTitleChangeThatRestoresSavedPlacementRetiresSwipe() throws {
         let floatingFrame = CGRect(x: 200, y: 150, width: 640, height: 480)
         let fixture = try fixture(savedPlacement: (title: "Document", floatingFrame: floatingFrame))
@@ -149,6 +177,8 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
         title: String,
         disposition: WindowDecisionDisposition,
         windowServerFrame: CGRect? = nil,
+        workspaceName: String? = nil,
+        ruleEffects: ManagedWindowRuleEffects = .none,
         in fixture: Fixture
     ) {
         let evaluation = WMController.WindowDecisionEvaluation(
@@ -177,8 +207,8 @@ final class WorkspaceSwipeTitleChangeTests: XCTestCase {
                 disposition: disposition,
                 source: .userRule(UUID()),
                 layoutDecisionKind: .explicitLayout,
-                workspaceName: nil,
-                ruleEffects: .none,
+                workspaceName: workspaceName,
+                ruleEffects: ruleEffects,
                 admissionHints: .none,
                 ruleProvenance: .none,
                 heuristicReasons: [],
