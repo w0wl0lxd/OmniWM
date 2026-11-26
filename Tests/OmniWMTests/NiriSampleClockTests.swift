@@ -154,6 +154,7 @@ final class NiriSampleClockTests: XCTestCase {
                 frame: CGRect(x: originX, y: 0, width: 1440, height: 900),
                 visibleFrame: CGRect(x: originX, y: 0, width: 1440, height: 860),
                 hasNotch: false,
+                backingScale: 2,
                 name: "Niri Sample Clock \(index)"
             )
         }
