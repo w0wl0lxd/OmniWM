@@ -6,6 +6,7 @@ import Foundation
 
 class NiriRoot: NiriContainer {
     let workspaceId: WorkspaceDescriptor.ID
+    var sampleLead: (() -> TimeInterval)?
 
     private var nodeIndex: [NodeId: NiriNode]?
     private var _cachedColumns: [NiriContainer]?

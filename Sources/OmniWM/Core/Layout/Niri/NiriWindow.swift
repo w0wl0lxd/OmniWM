@@ -186,7 +186,7 @@ final class NiriWindow: NiriNode {
             return
         }
 
-        let now = clock?.now() ?? CACurrentMediaTime()
+        let now = animationStartTime(clock: clock)
         let currentOffset = renderOffset(at: now)
         let currentVelX = moveXAnimation?.currentVelocity(at: now) ?? 0
         let currentVelY = moveYAnimation?.currentVelocity(at: now) ?? 0
@@ -237,7 +237,7 @@ final class NiriWindow: NiriNode {
             return
         }
         guard delta != 0 else { return }
-        let now = clock?.now() ?? CACurrentMediaTime()
+        let now = animationStartTime(clock: clock)
         let anim = SpringAnimation(
             from: 1,
             to: 0,
@@ -265,7 +265,7 @@ final class NiriWindow: NiriNode {
             return
         }
         guard delta != 0 else { return }
-        let now = clock?.now() ?? CACurrentMediaTime()
+        let now = animationStartTime(clock: clock)
         let anim = SpringAnimation(
             from: 1,
             to: 0,

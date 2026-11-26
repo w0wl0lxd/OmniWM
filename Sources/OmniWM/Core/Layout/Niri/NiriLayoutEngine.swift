@@ -146,6 +146,7 @@ final class NiriLayoutEngine {
             return existing
         }
         let state = NiriWorkspaceState(workspaceId: workspaceId)
+        state.root.sampleLead = { [weak self] in self?.sampleLead(in: workspaceId) ?? 0 }
         states[workspaceId] = state
         return state
     }

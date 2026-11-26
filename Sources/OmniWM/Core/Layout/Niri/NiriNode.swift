@@ -47,6 +47,10 @@ class NiriNode {
         return nil
     }
 
+    func animationStartTime(clock: AnimationClock?) -> TimeInterval {
+        (clock?.now() ?? CACurrentMediaTime()) + (findRoot()?.sampleLead?() ?? 0)
+    }
+
     func firstChild() -> NiriNode? {
         children.first
     }

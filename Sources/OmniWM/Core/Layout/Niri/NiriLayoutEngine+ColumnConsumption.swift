@@ -116,7 +116,7 @@ extension NiriLayoutEngine {
             geometry: snapshot.geometry,
             context: context
         )
-        let now = animationClock?.now() ?? CACurrentMediaTime()
+        let now = animationTime(in: context.workspaceId)
         let sourceSample = sampleTransferredWindow(
             window, in: (currentColumn, currentIdx), columns: cols, state: state,
             sampling: ColumnRenderSampling(geometry: snapshot.geometry, time: now, context: context)
@@ -232,7 +232,7 @@ extension NiriLayoutEngine {
         }
 
         let snapshot = prepareColumnMutation(context: context)
-        let now = animationClock?.now() ?? CACurrentMediaTime()
+        let now = animationTime(in: context.workspaceId)
         let sourceSample = sampleTransferredWindow(
             window, in: (sourceColumn, sourceColumnIdx), columns: cols, state: state,
             sampling: ColumnRenderSampling(geometry: snapshot.geometry, time: now, context: context)

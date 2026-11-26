@@ -22,7 +22,7 @@ extension NiriLayoutEngine {
         }
 
         let snapshot = prepareColumnMutation(context: context)
-        let now = animationClock?.now() ?? CACurrentMediaTime()
+        let now = animationTime(in: context.workspaceId)
         let cols = columns(in: context.workspaceId)
         let sourceSample = sampleTransferredWindow(
             window, in: (sourceColumn, sourceColumnIdx), columns: cols, state: state,
@@ -80,7 +80,7 @@ extension NiriLayoutEngine {
             geometry: snapshot.geometry,
             in: context.workspaceId
         )
-        let now = animationClock?.now() ?? CACurrentMediaTime()
+        let now = animationTime(in: context.workspaceId)
         let cols = columns(in: context.workspaceId)
 
         let sourceSample = sampleTransferredWindow(

@@ -396,6 +396,11 @@ extension WorkspaceManager {
             } else {
                 captured = world.installNiriEngine(newValue, monitors: monitors)
             }
+            newValue?.sampleClock = { [weak self] workspaceId in
+                MainActor.assumeIsolated {
+                    self?.animationDriver.sampleTime(in: workspaceId) ?? CACurrentMediaTime()
+                }
+            }
             if captured {
                 schedulePersistedWindowRestoreCatalogSave()
             }

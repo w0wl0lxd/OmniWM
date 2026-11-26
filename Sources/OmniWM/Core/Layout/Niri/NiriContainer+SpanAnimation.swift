@@ -24,7 +24,7 @@ extension NiriContainer {
         widthAnimation = Self.spanSpring(
             (from: cachedWidth, to: newWidth),
             continuing: widthAnimation,
-            clock: clock,
+            at: animationStartTime(clock: clock),
             config: config,
             displayRefreshRate: displayRefreshRate
         )
@@ -72,7 +72,7 @@ extension NiriContainer {
         heightAnimation = Self.spanSpring(
             (from: cachedHeight, to: newHeight),
             continuing: heightAnimation,
-            clock: clock,
+            at: animationStartTime(clock: clock),
             config: config,
             displayRefreshRate: displayRefreshRate
         )
@@ -98,12 +98,11 @@ extension NiriContainer {
     private static func spanSpring(
         _ span: (from: CGFloat, to: CGFloat),
         continuing running: SpringAnimation?,
-        clock: AnimationClock?,
+        at now: TimeInterval,
         config: SpringConfig,
         displayRefreshRate: Double
     ) -> SpringAnimation {
-        let now = clock?.now() ?? CACurrentMediaTime()
-        return SpringAnimation(
+        SpringAnimation(
             from: Double(span.from > 0 ? span.from : span.to),
             to: Double(span.to),
             initialVelocity: running?.velocity(at: now) ?? 0,

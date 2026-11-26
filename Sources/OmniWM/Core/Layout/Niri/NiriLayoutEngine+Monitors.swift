@@ -94,6 +94,14 @@ extension NiriLayoutEngine {
         sampleClock?(workspaceId) ?? CACurrentMediaTime()
     }
 
+    func sampleLead(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
+        max(0, sampleTime(in: workspaceId) - CACurrentMediaTime())
+    }
+
+    func animationTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
+        (animationClock?.now() ?? CACurrentMediaTime()) + sampleLead(in: workspaceId)
+    }
+
     func effectiveVisibleContainerCount(in workspaceId: WorkspaceDescriptor.ID) -> Int {
         effectiveSettings(in: workspaceId).visibleContainerCount
     }

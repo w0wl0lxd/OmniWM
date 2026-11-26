@@ -318,7 +318,7 @@ struct NodeActivationOptions {
     }
 
     func preparePredictedSizeAnimation(state: ViewportState, oldFrames: [WindowToken: CGRect]) {
-        let now = engine.animationClock?.now() ?? CACurrentMediaTime()
+        let now = engine.animationTime(in: wsId)
         engine.animateFilledSizeChanges(
             in: wsId,
             oldFrames: oldFrames,

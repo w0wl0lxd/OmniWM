@@ -343,7 +343,7 @@ extension NiriContainer {
             return
         }
 
-        let now = clock?.now() ?? CACurrentMediaTime()
+        let now = animationStartTime(clock: clock)
         let currentOffset = renderOffset(at: now)
         let currentValue = switch orientation {
         case .horizontal: currentOffset.x
@@ -398,7 +398,7 @@ extension NiriContainer {
     func offsetMoveAnimCurrent(
         _ offset: CGFloat,
         orientation: Monitor.Orientation,
-        at time: TimeInterval = CACurrentMediaTime()
+        at time: TimeInterval
     ) -> Bool {
         guard let anim = moveAnimation,
               moveAnimationOrientation == orientation
