@@ -17,6 +17,9 @@ extension MouseEventHandler {
         else {
             if drag.phase == .armed, state.leftPressWasDragged {
                 clearNativeTitleBarDrag()
+                if let entry = controller?.workspaceManager.entry(for: drag.token), entry.mode == .tiling {
+                    requestNativeTitleBarDragCorrection(for: entry)
+                }
             } else {
                 discardNativeTitleBarDragState()
             }

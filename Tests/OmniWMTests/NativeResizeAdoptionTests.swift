@@ -4737,7 +4737,11 @@ final class NativeResizeAdoptionTests: NiriInteractionTestCase {
             XCTAssertFalse(fixture.controller.axManager.frameLedger.forceApplyWindowIds.contains(token.windowId))
 
             if retiresAtNextPress {
+                fixture.controller.niriLayoutHandler.cancelAnimationMotion(for: fixture.workspaceId)
                 fixture.handler.retireNativeTitleBarDragAtInputBoundary()
+                let correction = try XCTUnwrap(fixture.controller.layoutRefreshController.layoutState.pendingRefresh)
+                XCTAssertEqual(correction.reason, .interactiveGesture)
+                XCTAssertTrue(correction.affectedWorkspaceIds.contains(fixture.workspaceId))
             } else {
                 fixture.handler.handleAppVisibilityChanged()
             }
