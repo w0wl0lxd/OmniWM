@@ -191,6 +191,29 @@ final class AnimationDriverTests: XCTestCase {
         XCTAssertEqual(sample.relativeProjectedOffset, sample.relativeOffset)
     }
 
+    func testGestureEndAfterJitteryStillTailProjectsCurrentOffset() {
+        let driver = AnimationDriver()
+        driver.beginGesture(in: workspaceId, isTrackpad: true)
+        for (delta, timestamp) in [(120.0, 1.00), (0.1, 1.04)] {
+            driver.updateGesture(
+                in: workspaceId,
+                delta: delta,
+                timestamp: timestamp,
+                isTrackpad: true,
+                viewportWidth: AnimationDriver.gestureWorkingAreaMovement
+            )
+        }
+
+        let sample = driver.sampleGestureEnd(
+            in: workspaceId,
+            isTrackpad: true,
+            viewportWidth: AnimationDriver.gestureWorkingAreaMovement,
+            timestamp: 1.09
+        )!
+
+        XCTAssertEqual(sample.relativeProjectedOffset, sample.relativeOffset)
+    }
+
     func testBelowFloorGestureEndCommitsCompletedDeceleration() {
         let driver = AnimationDriver()
         driver.beginGesture(in: workspaceId, isTrackpad: true)
