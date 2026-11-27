@@ -108,35 +108,52 @@ final class NiriArrivalContinuityTests: XCTestCase {
         for (activeColumn, removedColumn) in [(3, 2), (3, 1), (2, 1), (2, 0), (3, 0), (0, 3), (2, 3)] {
             let label = "active \(activeColumn), removed \(removedColumn)"
             let fixture = try makeFixture()
-            let manager = fixture.controller.workspaceManager
-            manager.withNiriViewportState(for: fixture.workspaceId) { state in
-                state.activeColumnIndex = activeColumn
-                state.jumpOffset(to: 0)
-            }
-            fixture.layout()
-            let columns = fixture.engine.columns(in: fixture.workspaceId)
-            let removed = try XCTUnwrap(columns[removedColumn].windowNodes.first)
-            let oldFrames = fixture.engine.captureWindowFrames(in: fixture.workspaceId)
-            var before = fixture.drawnPositions(at: 0)
-            before[removed.token] = nil
-
-            XCTAssertNotNil(manager.removeWindow(pid: 981_201, windowId: removed.token.windowId), label)
+            let removal = try removeColumn(removedColumn, activeColumn: activeColumn, from: fixture)
             let arrival = fixture.addWindow(9_825)
-            fixture.layout(removalSeeds: [
-                fixture.workspaceId: NiriWindowRemovalSeed(
-                    removedNodeIds: [removed.id],
-                    oldFrames: oldFrames,
-                    removedColumn: true
-                )
-            ])
+            fixture.layout(removalSeeds: removal.seeds)
 
             let after = fixture.drawnPositions(at: 0)
             XCTAssertNotNil(after[arrival], label)
-            XCTAssertNil(after[removed.token], label)
-            for (token, position) in before {
+            XCTAssertNil(after[removal.token], label)
+            for (token, position) in removal.before {
                 XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(label) \(token)")
             }
+
+            let reference = try makeFixture()
+            let separate = try removeColumn(removedColumn, activeColumn: activeColumn, from: reference)
+            reference.layout(removalSeeds: separate.seeds)
+            _ = reference.addWindow(9_825)
+            reference.layout()
+            let settled = CACurrentMediaTime() + 10
+            let expected = reference.drawnPositions(at: settled)
+            let actual = fixture.drawnPositions(at: settled)
+            XCTAssertEqual(Set(actual.keys), Set(expected.keys), label)
+            for (token, position) in expected {
+                XCTAssertEqual(try XCTUnwrap(actual[token]), position, accuracy: 0.5, "\(label) settled \(token)")
+            }
         }
+    }
+
+    private struct ColumnRemoval {
+        let token: WindowToken
+        let before: [WindowToken: CGFloat]
+        let seeds: [WorkspaceDescriptor.ID: NiriWindowRemovalSeed]
+    }
+
+    private func removeColumn(_ index: Int, activeColumn: Int, from fixture: Fixture) throws -> ColumnRemoval {
+        let manager = fixture.controller.workspaceManager
+        manager.withNiriViewportState(for: fixture.workspaceId) { state in
+            state.activeColumnIndex = activeColumn
+            state.jumpOffset(to: 0)
+        }
+        fixture.layout()
+        let removed = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId)[index].windowNodes.first)
+        let oldFrames = fixture.engine.captureWindowFrames(in: fixture.workspaceId)
+        var before = fixture.drawnPositions(at: 0)
+        before[removed.token] = nil
+        XCTAssertNotNil(manager.removeWindow(pid: 981_201, windowId: removed.token.windowId))
+        let seed = NiriWindowRemovalSeed(removedNodeIds: [removed.id], oldFrames: oldFrames, removedColumn: true)
+        return ColumnRemoval(token: removed.token, before: before, seeds: [fixture.workspaceId: seed])
     }
 
     func testArrivalNearTheEndOfAColumnSpringDoesNotSnap() throws {
