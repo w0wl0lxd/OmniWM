@@ -15,9 +15,12 @@ final class NiriArrivalContinuityTests: XCTestCase {
         let workspaceId: WorkspaceDescriptor.ID
 
         @MainActor
-        func layout() {
+        func layout(removalSeeds: [WorkspaceDescriptor.ID: NiriWindowRemovalSeed] = [:]) {
             _ = controller.workspaceManager.withBatchedLayoutBuild {
-                controller.niriLayoutHandler.layoutWithNiriEngine(activeWorkspaces: [workspaceId])
+                controller.niriLayoutHandler.layoutWithNiriEngine(
+                    activeWorkspaces: [workspaceId],
+                    removalSeeds: removalSeeds
+                )
             }
         }
 
@@ -98,6 +101,41 @@ final class NiriArrivalContinuityTests: XCTestCase {
                 positions == positions.sorted() || positions == positions.sorted(by: >),
                 "\(label) \(positions)"
             )
+        }
+    }
+
+    func testArrivalAndRemovalInOnePassStartFromTheDrawnStrip() throws {
+        for (activeColumn, removedColumn) in [(3, 2), (3, 1), (2, 1), (2, 0), (3, 0), (0, 3), (2, 3)] {
+            let label = "active \(activeColumn), removed \(removedColumn)"
+            let fixture = try makeFixture()
+            let manager = fixture.controller.workspaceManager
+            manager.withNiriViewportState(for: fixture.workspaceId) { state in
+                state.activeColumnIndex = activeColumn
+                state.jumpOffset(to: 0)
+            }
+            fixture.layout()
+            let columns = fixture.engine.columns(in: fixture.workspaceId)
+            let removed = try XCTUnwrap(columns[removedColumn].windowNodes.first)
+            let oldFrames = fixture.engine.captureWindowFrames(in: fixture.workspaceId)
+            var before = fixture.drawnPositions(at: 0)
+            before[removed.token] = nil
+
+            XCTAssertNotNil(manager.removeWindow(pid: 981_201, windowId: removed.token.windowId), label)
+            let arrival = fixture.addWindow(9_825)
+            fixture.layout(removalSeeds: [
+                fixture.workspaceId: NiriWindowRemovalSeed(
+                    removedNodeIds: [removed.id],
+                    oldFrames: oldFrames,
+                    removedColumn: true
+                )
+            ])
+
+            let after = fixture.drawnPositions(at: 0)
+            XCTAssertNotNil(after[arrival], label)
+            XCTAssertNil(after[removed.token], label)
+            for (token, position) in before {
+                XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(label) \(token)")
+            }
         }
     }
 
