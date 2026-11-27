@@ -312,7 +312,7 @@ extension NiriLayoutHandler {
 
             let originalActiveIdx = state.activeColumnIndex
             let insertedBeforeActive = newColumnData.filter { $0.colIdx <= originalActiveIdx }
-            if !insertedBeforeActive.isEmpty, !removal.removedColumn {
+            if !insertedBeforeActive.isEmpty {
                 let totalInsertedSpan = insertedBeforeActive.reduce(CGFloat(0)) { total, data in
                     isQuietArrival(data.col, in: snapshot)
                         ? total : total + data.col[keyPath: pass.primarySpanKeyPath] + pass.gap
@@ -327,7 +327,7 @@ extension NiriLayoutHandler {
                     columnIndex: addedData.colIdx,
                     context: pass.interactionContext,
                     state: state,
-                    keepsViewOrigin: !removal.removedColumn && !isQuietArrival(addedData.col, in: snapshot)
+                    keepsViewOrigin: !isQuietArrival(addedData.col, in: snapshot)
                 )
             }
         }
