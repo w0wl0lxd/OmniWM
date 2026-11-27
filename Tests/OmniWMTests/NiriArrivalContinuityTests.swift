@@ -15,9 +15,12 @@ final class NiriArrivalContinuityTests: XCTestCase {
         let workspaceId: WorkspaceDescriptor.ID
 
         @MainActor
-        func layout() {
+        func layout(removalSeeds: [WorkspaceDescriptor.ID: NiriWindowRemovalSeed] = [:]) {
             _ = controller.workspaceManager.withBatchedLayoutBuild {
-                controller.niriLayoutHandler.layoutWithNiriEngine(activeWorkspaces: [workspaceId])
+                controller.niriLayoutHandler.layoutWithNiriEngine(
+                    activeWorkspaces: [workspaceId],
+                    removalSeeds: removalSeeds
+                )
             }
         }
 
@@ -99,6 +102,88 @@ final class NiriArrivalContinuityTests: XCTestCase {
                 "\(label) \(positions)"
             )
         }
+    }
+
+    func testArrivalAndRemovalInOnePassStartFromTheDrawnStrip() throws {
+        for (isQuiet, centerMode) in [(false, CenterFocusedColumn.never), (true, .never), (false, .onOverflow)] {
+            for (activeColumn, removedColumn) in [(3, 2), (3, 1), (2, 1), (2, 0), (3, 0), (0, 3), (2, 3)] {
+                let label = "quiet \(isQuiet), \(centerMode), active \(activeColumn), removed \(removedColumn)"
+                let fixture = try makeFixture()
+                fixture.engine.centerFocusedColumn = centerMode
+                let removal = try removeColumn(removedColumn, activeColumn: activeColumn, from: fixture)
+                let arrival = arrive(in: fixture, isQuiet: isQuiet)
+                fixture.layout(removalSeeds: removal.seeds)
+
+                let after = fixture.drawnPositions(at: 0)
+                XCTAssertNotNil(after[arrival], label)
+                XCTAssertNil(after[removal.token], label)
+                for (token, position) in removal.onScreenBefore {
+                    XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(label) \(token)")
+                }
+
+                let reference = try makeFixture()
+                reference.engine.centerFocusedColumn = centerMode
+                let separate = try removeColumn(removedColumn, activeColumn: activeColumn, from: reference)
+                reference.layout(removalSeeds: separate.seeds)
+                _ = arrive(in: reference, isQuiet: isQuiet)
+                reference.layout()
+                try assertSettledStrip(of: fixture, matches: reference, label)
+            }
+        }
+    }
+
+    private struct ColumnRemoval {
+        let token: WindowToken
+        let onScreenBefore: [WindowToken: CGFloat]
+        let seeds: [WorkspaceDescriptor.ID: NiriWindowRemovalSeed]
+    }
+
+    private func removeColumn(_ index: Int, activeColumn: Int, from fixture: Fixture) throws -> ColumnRemoval {
+        let manager = fixture.controller.workspaceManager
+        manager.withNiriViewportState(for: fixture.workspaceId) { state in
+            state.activeColumnIndex = activeColumn
+            state.jumpOffset(to: 0)
+        }
+        fixture.layout()
+        let removed = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId)[index].windowNodes.first)
+        let oldFrames = fixture.engine.captureWindowFrames(in: fixture.workspaceId)
+        let onScreen = Set(fixture.engine.columns(in: fixture.workspaceId).flatMap(\.windowNodes).filter {
+            ($0.frame?.intersection(fixture.monitor.frame).width ?? 0) > 1
+        }.map(\.token))
+        let before = fixture.drawnPositions(at: 0).filter { $0.key != removed.token && onScreen.contains($0.key) }
+        XCTAssertNotNil(manager.removeWindow(pid: 981_201, windowId: removed.token.windowId))
+        let seed = NiriWindowRemovalSeed(removedNodeIds: [removed.id], oldFrames: oldFrames, removedColumn: true)
+        return ColumnRemoval(token: removed.token, onScreenBefore: before, seeds: [fixture.workspaceId: seed])
+    }
+
+    private func arrive(in fixture: Fixture, isQuiet: Bool) -> WindowToken {
+        let arrival = fixture.addWindow(9_825)
+        if isQuiet {
+            fixture.controller.workspaceManager.quietArrivalTokens.insert(arrival)
+        }
+        return arrival
+    }
+
+    private func assertSettledStrip(of fixture: Fixture, matches reference: Fixture, _ label: String) throws {
+        let settled = CACurrentMediaTime() + 10
+        let expected = reference.drawnPositions(at: settled)
+        let actual = fixture.drawnPositions(at: settled)
+        XCTAssertEqual(Set(actual.keys), Set(expected.keys), label)
+        for (token, position) in expected {
+            XCTAssertEqual(try XCTUnwrap(actual[token]), position, accuracy: 0.5, "\(label) settled \(token)")
+        }
+        let state = fixture.controller.workspaceManager.niriViewportState(for: fixture.workspaceId)
+        let referenceState = reference.controller.workspaceManager.niriViewportState(for: reference.workspaceId)
+        XCTAssertEqual(state.activeColumnIndex, referenceState.activeColumnIndex, label)
+        XCTAssertEqual(
+            selectedToken(in: fixture, id: state.selectedNodeId),
+            selectedToken(in: reference, id: referenceState.selectedNodeId),
+            label
+        )
+    }
+
+    private func selectedToken(in fixture: Fixture, id: NodeId?) -> WindowToken? {
+        id.flatMap { fixture.engine.findNode(by: $0, in: fixture.workspaceId) as? NiriWindow }?.token
     }
 
     func testArrivalNearTheEndOfAColumnSpringDoesNotSnap() throws {
