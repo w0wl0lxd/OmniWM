@@ -156,6 +156,8 @@ final class NiriArrivalContinuityTests: XCTestCase {
         }
         let before = fixture.drawnPositions(at: 0).filter { $0.key != removed.token && onScreen[$0.key] != nil }
         XCTAssertNotNil(manager.removeWindow(pid: 981_201, windowId: removed.token.windowId))
+        let firstWindow = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId).first?.windowNodes.first)
+        manager.rememberFocus(firstWindow.token, in: fixture.workspaceId)
         let seed = NiriWindowRemovalSeed(removedNodeIds: [removed.id], oldFrames: oldFrames, removedColumn: true)
         return ColumnRemoval(token: removed.token, onScreenBefore: before, seeds: [fixture.workspaceId: seed])
     }
