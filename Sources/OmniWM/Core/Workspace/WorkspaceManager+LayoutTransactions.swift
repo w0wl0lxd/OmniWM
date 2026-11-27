@@ -25,7 +25,9 @@ extension WorkspaceManager {
             plans = build()
             for index in plans.indices {
                 guard let viewportState = plans[index].sessionPatch.viewportState else { continue }
-                self.applyViewportInBatch(viewportState, for: plans[index].workspaceId)
+                self.applyViewportInBatch(
+                    viewportState, for: plans[index].workspaceId, at: plans[index].sessionPatch.animationTime
+                )
                 plans[index].sessionPatch.viewportState = nil
             }
             let committedSeq = self.worldSeq

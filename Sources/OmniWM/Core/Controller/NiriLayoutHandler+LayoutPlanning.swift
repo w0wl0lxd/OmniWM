@@ -41,13 +41,11 @@ extension NiriLayoutHandler {
                 )
             ) else { continue }
 
-            plans.append(
-                buildRelayoutPlan(
-                    snapshot: snapshot,
-                    engine: engine,
-                    monitor: monitor
-                )
-            )
+            let passTime = engine.beginLayoutPass(in: wsId)
+            var plan = buildRelayoutPlan(snapshot: snapshot, engine: engine, monitor: monitor)
+            engine.endLayoutPass(in: wsId)
+            plan.sessionPatch.animationTime = passTime
+            plans.append(plan)
         }
 
         return plans

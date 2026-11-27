@@ -8,6 +8,10 @@ import XCTest
 
 @MainActor
 final class NiriArrivalContinuityTests: XCTestCase {
+    private final class CommitLag {
+        var seconds: TimeInterval = 0
+    }
+
     private struct Fixture {
         let controller: WMController
         let engine: NiriLayoutEngine
@@ -159,6 +163,30 @@ final class NiriArrivalContinuityTests: XCTestCase {
         let first = try XCTUnwrap(columns[0].windowNodes.first?.token)
         let settled = try XCTUnwrap(fixture.drawnPositions(at: tick + 0.2)[first])
         XCTAssertEqual(settled, try XCTUnwrap(base[first]), accuracy: 0.5)
+    }
+
+    func testArrivalsMoveOneWayWhenTheCommitLagsThePass() throws {
+        let fixture = try makeFixture()
+        let manager = fixture.controller.workspaceManager
+        let lag = CommitLag()
+        manager.animationDriver.mediaTime = { CACurrentMediaTime() + lag.seconds }
+        manager.withNiriViewportState(for: fixture.workspaceId) { state in
+            state.activeColumnIndex = 0
+            state.jumpOffset(to: 0)
+        }
+        let arrivals = [fixture.addWindow(9_825), fixture.addWindow(9_826)]
+        _ = manager.withBatchedLayoutBuild {
+            defer { lag.seconds = 0.005 }
+            return fixture.controller.niriLayoutHandler.layoutWithNiriEngine(activeWorkspaces: [fixture.workspaceId])
+        }
+
+        let start = CACurrentMediaTime()
+        for arrival in arrivals {
+            let positions = try (0 ..< 90).map { frame in
+                try (XCTUnwrap(fixture.drawnPositions(at: start + Double(frame) / 120)[arrival]) * 100).rounded()
+            }
+            XCTAssertTrue(positions == positions.sorted() || positions == positions.sorted(by: >), "\(positions)")
+        }
     }
 
     func testArrivalNearTheEndOfAColumnSpringDoesNotSnap() throws {

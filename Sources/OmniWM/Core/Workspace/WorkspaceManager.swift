@@ -432,7 +432,11 @@ extension WorkspaceManager {
         world.layoutTopology(for: workspaceId)
     }
 
-    func applyViewportInBatch(_ state: ViewportState, for workspaceId: WorkspaceDescriptor.ID) {
+    func applyViewportInBatch(
+        _ state: ViewportState,
+        for workspaceId: WorkspaceDescriptor.ID,
+        at time: TimeInterval? = nil
+    ) {
         let previous = recordedViewportStates[workspaceId]
         var committed = state
         committed.clearOffsetTransition()
@@ -448,7 +452,8 @@ extension WorkspaceManager {
             workspaceId: workspaceId,
             previous: previous,
             next: recordedViewportStates[workspaceId] ?? committed,
-            transition: state.offsetTransition
+            transition: state.offsetTransition,
+            at: time
         )
     }
 

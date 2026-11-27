@@ -91,7 +91,7 @@ extension NiriLayoutEngine {
     }
 
     func sampleTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
-        sampleClock?(workspaceId) ?? CACurrentMediaTime()
+        root(for: workspaceId)?.passTimes?.sample ?? sampleClock?(workspaceId) ?? CACurrentMediaTime()
     }
 
     func sampleLead(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
@@ -99,7 +99,19 @@ extension NiriLayoutEngine {
     }
 
     func animationTime(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
-        (animationClock?.now() ?? CACurrentMediaTime()) + sampleLead(in: workspaceId)
+        root(for: workspaceId)?.passTimes?.start
+            ?? (animationClock?.now() ?? CACurrentMediaTime()) + sampleLead(in: workspaceId)
+    }
+
+    func beginLayoutPass(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
+        let sample = sampleTime(in: workspaceId)
+        let start = (animationClock?.now() ?? CACurrentMediaTime()) + max(0, sample - CACurrentMediaTime())
+        root(for: workspaceId)?.passTimes = (sample, start)
+        return sample
+    }
+
+    func endLayoutPass(in workspaceId: WorkspaceDescriptor.ID) {
+        root(for: workspaceId)?.passTimes = nil
     }
 
     func effectiveVisibleContainerCount(in workspaceId: WorkspaceDescriptor.ID) -> Int {

@@ -248,6 +248,7 @@ struct WorkspaceSessionPatch {
     var viewportState: ViewportState?
     var rememberedFocusToken: WindowToken?
     var plannedSeq: UInt64 = 0
+    var animationTime: TimeInterval?
 }
 
 enum AnimationDirective {
