@@ -108,7 +108,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
         for (isQuiet, centerMode) in [(false, CenterFocusedColumn.never), (true, .never), (false, .onOverflow)] {
             for (activeColumn, removedColumn) in [(3, 2), (3, 1), (2, 1), (2, 0), (3, 0), (0, 3), (2, 3)] {
                 let label = "quiet \(isQuiet), \(centerMode), active \(activeColumn), removed \(removedColumn)"
-                let fixture = try makeFixture()
+                let fixture = try makeFixture(columnCount: 8)
                 fixture.engine.centerFocusedColumn = centerMode
                 let removal = try removeColumn(removedColumn, activeColumn: activeColumn, from: fixture)
                 let arrival = arrive(in: fixture, isQuiet: isQuiet)
@@ -121,7 +121,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
                     XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(label) \(token)")
                 }
 
-                let reference = try makeFixture()
+                let reference = try makeFixture(columnCount: 8)
                 reference.engine.centerFocusedColumn = centerMode
                 let separate = try removeColumn(removedColumn, activeColumn: activeColumn, from: reference)
                 reference.layout(removalSeeds: separate.seeds)
@@ -157,7 +157,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
     }
 
     private func arrive(in fixture: Fixture, isQuiet: Bool) -> WindowToken {
-        let arrival = fixture.addWindow(9_825)
+        let arrival = fixture.addWindow(9_840)
         if isQuiet {
             fixture.controller.workspaceManager.quietArrivalTokens.insert(arrival)
         }
@@ -174,12 +174,18 @@ final class NiriArrivalContinuityTests: XCTestCase {
         }
         let state = fixture.controller.workspaceManager.niriViewportState(for: fixture.workspaceId)
         let referenceState = reference.controller.workspaceManager.niriViewportState(for: reference.workspaceId)
-        XCTAssertEqual(state.activeColumnIndex, referenceState.activeColumnIndex, label)
+        XCTAssertEqual(activeToken(in: fixture), activeToken(in: reference), label)
         XCTAssertEqual(
             selectedToken(in: fixture, id: state.selectedNodeId),
             selectedToken(in: reference, id: referenceState.selectedNodeId),
             label
         )
+    }
+
+    private func activeToken(in fixture: Fixture) -> WindowToken? {
+        let index = fixture.controller.workspaceManager.niriViewportState(for: fixture.workspaceId).activeColumnIndex
+        let columns = fixture.engine.columns(in: fixture.workspaceId)
+        return columns.indices.contains(index) ? columns[index].windowNodes.first?.token : nil
     }
 
     private func selectedToken(in fixture: Fixture, id: NodeId?) -> WindowToken? {
@@ -245,7 +251,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
         )
     }
 
-    private func makeFixture() throws -> Fixture {
+    private func makeFixture(columnCount: Int = 4) throws -> Fixture {
         let controller = WindowAdmissionTestSupport.controller()
         controller.motionPolicy.animationsEnabled = true
         let monitor = Monitor(
@@ -268,7 +274,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
             monitor: monitor,
             workspaceId: workspaceId
         )
-        for windowId in 9_821 ... 9_824 {
+        for windowId in 9_821 ..< 9_821 + columnCount {
             _ = fixture.addWindow(windowId)
         }
         fixture.layout()
