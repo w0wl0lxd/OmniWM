@@ -105,7 +105,8 @@ extension NiriLayoutEngine {
 
     func beginLayoutPass(in workspaceId: WorkspaceDescriptor.ID) -> TimeInterval {
         let sample = sampleTime(in: workspaceId)
-        let start = (animationClock?.now() ?? CACurrentMediaTime()) + max(0, sample - CACurrentMediaTime())
+        let wall = CACurrentMediaTime()
+        let start = (animationClock?.now() ?? wall) - wall + sample
         root(for: workspaceId)?.passTimes = (sample, start)
         return sample
     }
