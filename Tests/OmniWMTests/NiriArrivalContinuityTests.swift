@@ -190,6 +190,7 @@ final class NiriArrivalContinuityTests: XCTestCase {
         let fixture = try makeFixture(columnCount: 8)
         fixture.controller.settings.niri.centerFocusedColumn = centerMode
         fixture.controller.updateNiriConfig(centerFocusedColumn: centerMode)
+        XCTAssertEqual(fixture.engine.effectiveSettings(in: fixture.workspaceId).centerFocusedColumn, centerMode)
         return fixture
     }
 
