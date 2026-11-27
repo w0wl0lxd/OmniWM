@@ -108,11 +108,11 @@ final class NiriArrivalContinuityTests: XCTestCase {
         for (isQuiet, centerMode) in [(false, CenterFocusedColumn.never), (true, .never), (false, .onOverflow)] {
             for (activeColumn, removedColumn) in [(3, 2), (3, 1), (2, 1), (2, 0), (3, 0), (0, 3), (2, 3)] {
                 let label = "quiet \(isQuiet), \(centerMode), active \(activeColumn), removed \(removedColumn)"
-                let fixture = try makeFixture(columnCount: 8)
-                fixture.engine.centerFocusedColumn = centerMode
+                let fixture = try makeStrip(centerMode: centerMode)
                 let removal = try removeColumn(removedColumn, activeColumn: activeColumn, from: fixture)
                 let arrival = arrive(in: fixture, isQuiet: isQuiet)
                 fixture.layout(removalSeeds: removal.seeds)
+                XCTAssertEqual(columnIndex(of: arrival, in: fixture), 1, label)
 
                 let after = fixture.drawnPositions(at: 0)
                 XCTAssertNotNil(after[arrival], label)
@@ -121,12 +121,12 @@ final class NiriArrivalContinuityTests: XCTestCase {
                     XCTAssertEqual(try XCTUnwrap(after[token]), position, accuracy: 0.5, "\(label) \(token)")
                 }
 
-                let reference = try makeFixture(columnCount: 8)
-                reference.engine.centerFocusedColumn = centerMode
+                let reference = try makeStrip(centerMode: centerMode)
                 let separate = try removeColumn(removedColumn, activeColumn: activeColumn, from: reference)
                 reference.layout(removalSeeds: separate.seeds)
-                _ = arrive(in: reference, isQuiet: isQuiet)
+                let referenceArrival = arrive(in: reference, isQuiet: isQuiet)
                 reference.layout()
+                XCTAssertEqual(columnIndex(of: referenceArrival, in: reference), 1, label)
                 try assertSettledStrip(of: fixture, matches: reference, label)
             }
         }
@@ -140,17 +140,21 @@ final class NiriArrivalContinuityTests: XCTestCase {
 
     private func removeColumn(_ index: Int, activeColumn: Int, from fixture: Fixture) throws -> ColumnRemoval {
         let manager = fixture.controller.workspaceManager
+        let columns = fixture.engine.columns(in: fixture.workspaceId)
         manager.withNiriViewportState(for: fixture.workspaceId) { state in
             state.activeColumnIndex = activeColumn
+            state.selectedNodeId = columns[activeColumn].windowNodes.first?.id
             state.jumpOffset(to: 0)
         }
         fixture.layout()
-        let removed = try XCTUnwrap(fixture.engine.columns(in: fixture.workspaceId)[index].windowNodes.first)
+        XCTAssertFalse(manager.animationDriver.hasMotion(in: fixture.workspaceId))
+        let removed = try XCTUnwrap(columns[index].windowNodes.first)
         let oldFrames = fixture.engine.captureWindowFrames(in: fixture.workspaceId)
-        let onScreen = Set(fixture.engine.columns(in: fixture.workspaceId).flatMap(\.windowNodes).filter {
-            ($0.frame?.intersection(fixture.monitor.frame).width ?? 0) > 1
-        }.map(\.token))
-        let before = fixture.drawnPositions(at: 0).filter { $0.key != removed.token && onScreen.contains($0.key) }
+        let screen = fixture.monitor.frame
+        let onScreen = oldFrames.filter { _, frame in
+            frame.intersection(screen).width > 1 && frame.minX > screen.minX - frame.width + 2
+        }
+        let before = fixture.drawnPositions(at: 0).filter { $0.key != removed.token && onScreen[$0.key] != nil }
         XCTAssertNotNil(manager.removeWindow(pid: 981_201, windowId: removed.token.windowId))
         let seed = NiriWindowRemovalSeed(removedNodeIds: [removed.id], oldFrames: oldFrames, removedColumn: true)
         return ColumnRemoval(token: removed.token, onScreenBefore: before, seeds: [fixture.workspaceId: seed])
@@ -180,6 +184,17 @@ final class NiriArrivalContinuityTests: XCTestCase {
             selectedToken(in: reference, id: referenceState.selectedNodeId),
             label
         )
+    }
+
+    private func makeStrip(centerMode: CenterFocusedColumn) throws -> Fixture {
+        let fixture = try makeFixture(columnCount: 8)
+        fixture.controller.settings.niri.centerFocusedColumn = centerMode
+        fixture.controller.updateNiriConfig(centerFocusedColumn: centerMode)
+        return fixture
+    }
+
+    private func columnIndex(of token: WindowToken, in fixture: Fixture) -> Int? {
+        fixture.engine.columns(in: fixture.workspaceId).firstIndex { $0.windowNodes.contains { $0.token == token } }
     }
 
     private func activeToken(in fixture: Fixture) -> WindowToken? {
