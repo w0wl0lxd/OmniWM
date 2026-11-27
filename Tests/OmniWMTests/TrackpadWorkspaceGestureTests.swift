@@ -316,22 +316,28 @@ final class TrackpadWorkspaceGestureTests: XCTestCase {
     }
 
     func testFlickShorterThanTheLandingSettleCommitsWhenFingersLift() throws {
-        let cases: [(label: String, phase: NSEvent.Phase, fingers: Int, switches: Bool)] = [
-            ("full lift", .ended, 0, true),
-            ("partial lift", .changed, 2, true),
-            ("cancelled", .cancelled, 0, false)
+        struct Case {
+            let label: String
+            let phase: NSEvent.Phase
+            let fingers: Int
+            let switches: Bool
+        }
+        let cases = [
+            Case(label: "full lift", phase: .ended, fingers: 0, switches: true),
+            Case(label: "partial lift", phase: .changed, fingers: 2, switches: true),
+            Case(label: "cancelled", phase: .cancelled, fingers: 0, switches: false)
         ]
-        for (label, phase, fingers, switches) in cases {
+        for testCase in cases {
             let fixture = try makeFixture()
             fixture.controller.motionPolicy.animationsEnabled = false
             fixture.controller.settings.gestures.overviewGestureEnabled = true
             sendFrame(fixture, phase: .began, fingers: 3, x: 0.5, y: 0.2, at: 100)
             sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.24, at: 100.008)
             sendFrame(fixture, phase: .changed, fingers: 3, x: 0.5, y: 0.3, at: 100.016)
-            XCTAssertEqual(activeWorkspace(fixture), fixture.ws1, label)
-            sendFrame(fixture, phase: phase, fingers: fingers, x: 0.5, y: 0.3, at: 100.024)
-            XCTAssertEqual(activeWorkspace(fixture), switches ? fixture.ws2 : fixture.ws1, label)
-            XCTAssertEqual(fixture.controller.mouseEventHandler.tapInputs.gesturePhase, .idle, label)
+            XCTAssertEqual(activeWorkspace(fixture), fixture.ws1, testCase.label)
+            sendFrame(fixture, phase: testCase.phase, fingers: testCase.fingers, x: 0.5, y: 0.3, at: 100.024)
+            XCTAssertEqual(activeWorkspace(fixture), testCase.switches ? fixture.ws2 : fixture.ws1, testCase.label)
+            XCTAssertEqual(fixture.controller.mouseEventHandler.tapInputs.gesturePhase, .idle, testCase.label)
         }
     }
 
