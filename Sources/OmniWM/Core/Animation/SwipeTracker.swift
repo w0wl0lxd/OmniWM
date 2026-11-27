@@ -9,6 +9,7 @@ struct SwipeEvent {
 }
 
 final class SwipeTracker {
+    private static let stillSpeedFraction = 0.05
     private let historyLimit: TimeInterval
     private var history: [SwipeEvent] = []
     private(set) var position: Double = 0
@@ -65,11 +66,19 @@ final class SwipeTracker {
               let last = history.last,
               last.timestamp > timestamp - historyLimit
         else { return 0 }
-        guard last.delta == 0 else { return velocity() }
+        let tracked = velocity()
+        guard isStill(last, comparedTo: tracked) else { return tracked }
         let kept = history.filter { $0.timestamp > timestamp - historyLimit }
         guard let first = kept.first, timestamp > first.timestamp else { return 0 }
         let velocity = kept.reduce(0.0) { $0 + $1.delta } / (timestamp - first.timestamp)
         return velocity.isFinite ? velocity : 0
+    }
+
+    private func isStill(_ last: SwipeEvent, comparedTo velocity: Double) -> Bool {
+        guard history.count > 1 else { return last.delta == 0 }
+        let interval = last.timestamp - history[history.count - 2].timestamp
+        guard interval > 0 else { return last.delta == 0 }
+        return abs(last.delta) / interval <= Self.stillSpeedFraction * abs(velocity)
     }
 
     private func trimHistory(currentTime: TimeInterval) {

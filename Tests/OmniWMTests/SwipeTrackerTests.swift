@@ -85,6 +85,24 @@ final class SwipeTrackerTests: XCTestCase {
         XCTAssertEqual(tracker.velocity(atRelease: last + 0.1), 0)
     }
 
+    func testJitterInAStillTailDoesNotRestoreTheFlick() {
+        for (historyLimit, move) in [(0.080, 120.0), (0.150, 0.3)] {
+            let jitter = move / 1200
+            let still = Self.releaseVelocity(historyLimit: historyLimit, move: move, tail: 0)
+            let jittery = Self.releaseVelocity(historyLimit: historyLimit, move: move, tail: jitter)
+
+            XCTAssertEqual(jittery, still, accuracy: 2 * jitter / 0.05, "\(historyLimit)")
+        }
+    }
+
+    private static func releaseVelocity(historyLimit: TimeInterval, move: Double, tail: Double) -> Double {
+        let tracker = SwipeTracker(historyLimit: historyLimit)
+        tracker.push(delta: 0, timestamp: 0.99)
+        tracker.push(delta: move, timestamp: 1.00)
+        tracker.push(delta: tail, timestamp: 1.04)
+        return tracker.velocity(atRelease: 1.09)
+    }
+
     func testNonfiniteSamplesAreRejectedWithoutPoisoningState() {
         let tracker = SwipeTracker()
 

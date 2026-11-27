@@ -1854,6 +1854,26 @@ final class OverviewBehaviorTests: XCTestCase {
         }
     }
 
+    func testJitterAfterARestDoesNotRestoreAnOverviewFlick() throws {
+        var velocities: [Double] = []
+        for tail in [4.0, 4.004] {
+            let harness = try InteractiveOverviewHarness(fixture: makeRuntimeOverviewFixture(windowCount: 1))
+            let overview = harness.overview
+            XCTAssertTrue(overview.beginInteractiveTransition())
+            overview.updateInteractiveTransition(cumulativeUnits: 0, timestamp: 100)
+            overview.updateInteractiveTransition(cumulativeUnits: 4, timestamp: 100.008)
+            overview.updateInteractiveTransition(cumulativeUnits: tail, timestamp: 100.048)
+            harness.clock.time = 100.098
+            overview.endInteractiveTransition(timestamp: harness.clock.time)
+
+            try velocities.append(XCTUnwrap(harness.installed.last).initialVelocity)
+            overview.completeCloseTransition(targetWindow: nil)
+        }
+
+        let jitter = TrackpadGestureIntent.overviewProgress(units: 0.004)
+        XCTAssertEqual(velocities[1], velocities[0], accuracy: 2 * jitter / 0.05)
+    }
+
     func testUpwardFlickDuringCloseTrackReopens() throws {
         let harness = try InteractiveOverviewHarness(fixture: makeRuntimeOverviewFixture(windowCount: 1))
         let overview = harness.overview
